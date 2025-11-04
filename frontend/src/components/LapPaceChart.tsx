@@ -47,6 +47,12 @@ export function LapPaceChart({ laps }: LapPaceChartProps) {
       .flatMap(([, laps]) => laps)
   }, [laps])
 
+  const formatPace = (value: number) => {
+    const minutes = Math.floor(value)
+    const seconds = Math.round((value - minutes) * 60)
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`
+  }
+
   if (chartData.length === 0) {
     return (
       <div className="flex h-80 items-center justify-center rounded-lg border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
@@ -56,18 +62,6 @@ export function LapPaceChart({ laps }: LapPaceChartProps) {
       </div>
     )
   }
-
-  const formatPace = (value: number) => {
-    const minutes = Math.floor(value)
-    const seconds = Math.round((value - minutes) * 60)
-    return `${minutes}:${seconds.toString().padStart(2, '0')}`
-  }
-
-  // Get unique dates for x-axis
-  const uniqueDates = useMemo(() => {
-    const dates = new Set(chartData.map(d => d.date))
-    return Array.from(dates)
-  }, [chartData])
 
   return (
     <div className="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">

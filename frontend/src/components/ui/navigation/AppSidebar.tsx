@@ -11,7 +11,7 @@ import {
   SidebarMenu,
   SidebarMenuItem,
 } from "@/components/Sidebar"
-import { RiDashboardLine, RiRunLine, RiRefreshLine } from "@remixicon/react"
+import { RiDashboardLine, RiRunLine, RiRefreshLine, RiSparklingFill } from "@remixicon/react"
 import * as React from "react"
 import { Logo } from "../../../../public/Logo"
 import { UserProfile } from "./UserProfile"
@@ -27,6 +27,11 @@ const navigation = [
     name: "Activities",
     href: "/activities",
     icon: RiRunLine,
+  },
+  {
+    name: "AI Insights",
+    href: "/insights",
+    icon: RiSparklingFill,
   },
 ] as const
 

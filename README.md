@@ -9,8 +9,9 @@ PaceUp is a full-stack application that integrates with the Strava API to retrie
 - 🏃 **Activity Sync** - Fetch and store all your Strava activities
 - 📊 **Athlete Stats** - Retrieve athlete statistics (recent, YTD, all-time)
 - 📈 **Lap Data** - Store and retrieve lap-by-lap metrics
+- 🤖 **AI-Powered Analysis** - Training insights using OpenAI
 - 🗄️ **PostgreSQL Database** - Persistent storage for all your data
-- 📦 **Docker Support** - Easy deployment with Docker Compose
+- 📦 **Docker Support** - Complete containerized deployment
 
 ### Frontend (Next.js)
 - 📊 **Dashboard** - View your athlete stats at a glance
@@ -19,13 +20,15 @@ PaceUp is a full-stack application that integrates with the Strava API to retrie
 - 🔄 **One-Click Sync** - Sync data directly from the UI
 - 🌙 **Dark Mode** - Built-in dark mode support
 - 📱 **Responsive Design** - Works on all devices
+- ⚡️ **Server-Side Rendering** - Optimized performance with Next.js 15
 
 ## 🚀 Quick Start
 
 ### Prerequisites
 
-- Docker and Docker Compose
+- Docker Engine 20.10+ and Docker Compose 2.0+
 - Strava API credentials (Client ID, Client Secret, Refresh Token)
+- OpenAI API key (for AI training analysis)
 
 ### 1. Clone and Setup Environment
 
@@ -34,20 +37,30 @@ PaceUp is a full-stack application that integrates with the Strava API to retrie
 git clone <your-repo-url>
 cd PaceUp
 
-# Create .env file with your Strava credentials
-cat > .env << 'EOF'
+# Create .env file from example
+cp env.example .env
+
+# Edit .env with your credentials
+nano .env  # or use your preferred editor
+```
+
+Required environment variables:
+```env
 # Strava API Credentials
 STRAVA_CLIENT_ID=your_client_id_here
 STRAVA_CLIENT_SECRET=your_client_secret_here
 STRAVA_REFRESH_TOKEN=your_refresh_token_here
 
-# Database Configuration
-DATABASE_URL=postgresql://postgres:postgres@localhost:5432/paceup
+# OpenAI API Key
+OPENAI_API_KEY=your_openai_api_key_here
+OPENAI_MODEL=gpt-4
+
+# Database Configuration (use 'db' as hostname for Docker)
+DATABASE_URL=postgresql://postgres:postgres@db:5432/paceup
 
 # Application Settings
 APP_NAME=PaceUp
 DEBUG=True
-EOF
 ```
 
 ### 2. Start All Services
@@ -61,6 +74,8 @@ This will start:
 - **PostgreSQL Database** on `localhost:5432`
 - **Backend API** on `http://localhost:8000`
 - **Frontend** on `http://localhost:3000`
+
+For detailed Docker instructions, see [Docker Setup Guide](docs/DOCKER_SETUP.md).
 
 ### 3. Access the Application
 
@@ -239,8 +254,12 @@ STRAVA_CLIENT_ID=your_client_id
 STRAVA_CLIENT_SECRET=your_secret
 STRAVA_REFRESH_TOKEN=your_refresh_token
 
-# Database
-DATABASE_URL=postgresql://postgres:postgres@localhost:5432/paceup
+# OpenAI API
+OPENAI_API_KEY=your_openai_api_key
+OPENAI_MODEL=gpt-4
+
+# Database (use 'db' for Docker, 'localhost' for local dev)
+DATABASE_URL=postgresql://postgres:postgres@db:5432/paceup
 
 # App
 APP_NAME=PaceUp
@@ -249,6 +268,16 @@ DEBUG=True
 
 ### Frontend Environment Variables
 
+Set in `docker-compose.yaml` for containerized deployment:
+```env
+# Internal network URL (for server-side requests)
+NEXT_PUBLIC_API_URL=http://backend:80
+
+# External URL (for client-side/browser requests)
+NEXT_PUBLIC_BROWSER_API_URL=http://localhost:8000
+```
+
+For local development, create `.env.local`:
 ```env
 NEXT_PUBLIC_API_URL=http://localhost:8000
 ```
