@@ -20,6 +20,14 @@ COPY . .
 
 ENV NEXT_TELEMETRY_DISABLED=1
 
+# Accept build arguments for Next.js public environment variables
+ARG NEXT_PUBLIC_API_URL
+ARG NEXT_PUBLIC_BROWSER_API_URL
+
+# Make them available as environment variables during build
+ENV NEXT_PUBLIC_API_URL=$NEXT_PUBLIC_API_URL
+ENV NEXT_PUBLIC_BROWSER_API_URL=$NEXT_PUBLIC_BROWSER_API_URL
+
 RUN pnpm build
 
 FROM node:20-alpine AS runner
