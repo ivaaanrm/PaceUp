@@ -5,7 +5,7 @@ from typing import List, Optional
 from datetime import datetime
 import logging
 
-from app.db.schema import SessionLocal
+from app.db.schema import SessionLocal, User
 from app.services.strava_service import strava_service
 from app.services.strava_db_service import strava_db_service
 from app.models.strava import (
@@ -19,6 +19,9 @@ from app.models.strava import (
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/strava", tags=["Strava"])
+
+# Import authentication dependency
+from app.api.v1.auth import get_current_user
 
 
 def get_db():
@@ -82,11 +85,13 @@ async def get_athlete_stats():
 async def sync_activities(
     db: Session = Depends(get_db),
     after: Optional[datetime] = Query(None, description="Sync activities after this date"),
-    before: Optional[datetime] = Query(None, description="Sync activities before this date")
+    before: Optional[datetime] = Query(None, description="Sync activities before this date"),
+    current_user: User = Depends(get_current_user)
 ):
     """
     Sync activities from Strava to the database.
     This will fetch all activities and store them in the database.
+    Requires authentication.
     """
     try:
         # Get athlete first to ensure we have the athlete record
@@ -117,10 +122,12 @@ async def sync_activities(
 @router.post("/sync/activity/{activity_id}/laps", response_model=SyncResponse)
 async def sync_activity_laps(
     activity_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
     Sync laps for a specific activity from Strava.
+    Requires authentication.
     """
     try:
         # Fetch laps from Strava
@@ -143,10 +150,12 @@ async def sync_all(
     db: Session = Depends(get_db),
     after: Optional[datetime] = Query(None, description="Sync activities after this date"),
     before: Optional[datetime] = Query(None, description="Sync activities before this date"),
-    include_laps: bool = Query(False, description="Also sync laps for each activity")
+    include_laps: bool = Query(False, description="Also sync laps for each activity"),
+    current_user: User = Depends(get_current_user)
 ):
     """
     Sync all data from Strava: athlete profile, activities, and optionally laps.
+    Requires authentication.
     """
     try:
         # Get athlete

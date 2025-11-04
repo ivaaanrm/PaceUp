@@ -4,7 +4,7 @@ from sqlalchemy.orm import Session
 from typing import List, Optional
 import logging
 
-from app.db.schema import SessionLocal
+from app.db.schema import SessionLocal, User
 from app.services.strava_service import strava_service
 from app.services.ai_analysis_service import ai_analysis_service
 from app.models.analysis import (
@@ -16,6 +16,9 @@ from app.models.analysis import (
 logger = logging.getLogger(__name__)
 
 router = APIRouter(prefix="/analysis", tags=["Training Analysis"])
+
+# Import authentication dependency
+from app.api.v1.auth import get_current_user
 
 
 def get_db():
@@ -30,11 +33,13 @@ def get_db():
 @router.post("/generate", response_model=AnalysisGeneratedResponse)
 async def generate_analysis(
     request: AnalysisRequest,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
     Generate a new AI-powered training analysis.
     This will analyze recent activities and provide insights and tips.
+    Requires authentication.
     """
     try:
         # Get the authenticated athlete

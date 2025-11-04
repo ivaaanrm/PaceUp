@@ -4,8 +4,10 @@ import { useEffect, useState } from "react"
 import { analysisAPI, stravaAPI, type TrainingAnalysis, type Athlete } from "@/lib/api"
 import { Button } from "@/components/Button"
 import { RiSparklingFill, RiLightbulbFlashLine, RiRunLine, RiHistoryLine, RiRefreshLine } from "@remixicon/react"
+import { useAuth } from "@/contexts/AuthContext"
 
 export default function InsightsPage() {
+  const { isAuthenticated } = useAuth()
   const [athlete, setAthlete] = useState<Athlete | null>(null)
   const [latestAnalysis, setLatestAnalysis] = useState<TrainingAnalysis | null>(null)
   const [analysisHistory, setAnalysisHistory] = useState<TrainingAnalysis[]>([])
@@ -86,7 +88,8 @@ export default function InsightsPage() {
           </div>
           <Button 
             onClick={handleGenerateAnalysis} 
-            disabled={generatingAnalysis}
+            disabled={generatingAnalysis || !isAuthenticated}
+            title={!isAuthenticated ? "Please sign in to generate insights" : ""}
           >
             <RiSparklingFill className={`mr-2 h-4 w-4 ${generatingAnalysis ? 'animate-spin' : ''}`} />
             {generatingAnalysis ? 'Analyzing...' : 'Generate New Insights'}
@@ -179,7 +182,7 @@ export default function InsightsPage() {
             Generate your first AI-powered training analysis to get personalized insights, 
             training load analysis, and actionable tips for your next runs.
           </p>
-          <Button onClick={handleGenerateAnalysis} disabled={generatingAnalysis}>
+          <Button onClick={handleGenerateAnalysis} disabled={generatingAnalysis || !isAuthenticated} title={!isAuthenticated ? "Please sign in to generate insights" : ""}>
             <RiSparklingFill className={`mr-2 h-4 w-4 ${generatingAnalysis ? 'animate-spin' : ''}`} />
             {generatingAnalysis ? 'Analyzing...' : 'Generate Insights'}
           </Button>

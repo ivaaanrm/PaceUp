@@ -5,6 +5,7 @@ import { stravaAPI, type Athlete, type Activity, type LapWithActivity } from "@/
 import { Button } from "@/components/Button"
 import { RiRefreshLine, RiRunLine, RiCalendarLine } from "@remixicon/react"
 import { LapPaceChart } from "@/components/LapPaceChart"
+import { useAuth } from "@/contexts/AuthContext"
 
 // Race configuration
 const RACE_DATE = new Date('2026-01-18')
@@ -90,6 +91,7 @@ function RaceCountdown() {
 }
 
 export default function DashboardPage() {
+  const { isAuthenticated } = useAuth()
   const [athlete, setAthlete] = useState<Athlete | null>(null)
   const [activities, setActivities] = useState<Activity[]>([])
   const [laps, setLaps] = useState<LapWithActivity[]>([])
@@ -269,7 +271,7 @@ export default function DashboardPage() {
             {athlete?.firstname ? `${athlete.firstname}'s training for ${RACE_NAME}` : 'Your Race Training'}
           </p>
         </div>
-        <Button onClick={handleSync} disabled={syncing}>
+        <Button onClick={handleSync} disabled={syncing || !isAuthenticated} title={!isAuthenticated ? "Please sign in to sync activities" : ""}>
           <RiRefreshLine className={`mr-2 h-4 w-4 ${syncing ? 'animate-spin' : ''}`} />
           {syncing ? 'Syncing...' : 'Sync Activities'}
         </Button>
@@ -429,7 +431,7 @@ export default function DashboardPage() {
           <p className="mb-4 text-gray-500 dark:text-gray-400">
             Sync your Strava activities to start tracking your training
           </p>
-          <Button onClick={handleSync} disabled={syncing}>
+          <Button onClick={handleSync} disabled={syncing || !isAuthenticated} title={!isAuthenticated ? "Please sign in to sync activities" : ""}>
             <RiRefreshLine className={`mr-2 h-4 w-4 ${syncing ? 'animate-spin' : ''}`} />
             {syncing ? 'Syncing...' : 'Sync Now'}
           </Button>
