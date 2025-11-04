@@ -902,7 +902,16 @@ export default function DashboardPage() {
                             tickFormatter={formatPaceFromMinPerKm}
                             className="text-xs text-gray-500 dark:text-gray-400"
                             tick={{ fill: 'currentColor' }}
-                            domain={['auto', 'auto']}
+                            domain={(() => {
+                              const validPaces = weekly1KmLapsMetrics
+                                .map(w => w.metrics.avgPace)
+                                .filter((p): p is number => p !== null && p !== undefined)
+                              if (validPaces.length === 0) return ['auto', 'auto']
+                              const minPace = Math.min(...validPaces)
+                              const maxPace = Math.max(...validPaces)
+                              const padding = (maxPace - minPace) * 0.1 || 0.2
+                              return [maxPace + padding, minPace - padding] // Reversed for pace
+                            })()}
                             reversed
                             label={{ 
                               value: 'Pace (min/km)', 
@@ -973,6 +982,16 @@ export default function DashboardPage() {
                           <YAxis
                             className="text-xs text-gray-500 dark:text-gray-400"
                             tick={{ fill: 'currentColor' }}
+                            domain={(() => {
+                              const validHR = weekly1KmLapsMetrics
+                                .map(w => w.metrics.avgHeartRate)
+                                .filter((hr): hr is number => hr !== null && hr !== undefined)
+                              if (validHR.length === 0) return ['auto', 'auto']
+                              const minHR = Math.min(...validHR)
+                              const maxHR = Math.max(...validHR)
+                              const padding = (maxHR - minHR) * 0.1 || 5
+                              return [Math.max(0, Math.floor((minHR - padding) / 10) * 10), Math.ceil((maxHR + padding) / 10) * 10]
+                            })()}
                             label={{ 
                               value: 'Heart Rate (bpm)', 
                               angle: -90, 
@@ -1042,6 +1061,16 @@ export default function DashboardPage() {
                           <YAxis
                             className="text-xs text-gray-500 dark:text-gray-400"
                             tick={{ fill: 'currentColor' }}
+                            domain={(() => {
+                              const validCadence = weekly1KmLapsMetrics
+                                .map(w => w.metrics.avgCadence)
+                                .filter((c): c is number => c !== null && c !== undefined)
+                              if (validCadence.length === 0) return ['auto', 'auto']
+                              const minCadence = Math.min(...validCadence)
+                              const maxCadence = Math.max(...validCadence)
+                              const padding = (maxCadence - minCadence) * 0.1 || 2
+                              return [Math.max(0, Math.floor((minCadence - padding) / 5) * 5), Math.ceil((maxCadence + padding) / 5) * 5]
+                            })()}
                             label={{ 
                               value: 'Cadence (spm)', 
                               angle: -90, 
