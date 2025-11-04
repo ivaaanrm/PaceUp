@@ -218,7 +218,8 @@ async def get_activities(
                 average_speed=activity.average_speed,
                 max_speed=activity.max_speed,
                 average_heartrate=activity.average_heartrate,
-                max_heartrate=activity.max_heartrate
+                max_heartrate=activity.max_heartrate,
+                average_cadence=activity.average_cadence
             )
             for activity in activities
         ]
@@ -253,7 +254,8 @@ async def get_activity(
             average_speed=activity.average_speed,
             max_speed=activity.max_speed,
             average_heartrate=activity.average_heartrate,
-            max_heartrate=activity.max_heartrate
+            max_heartrate=activity.max_heartrate,
+            average_cadence=activity.average_cadence
         )
     except HTTPException:
         raise

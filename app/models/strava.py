@@ -35,6 +35,7 @@ class ActivityResponse(BaseModel):
     max_speed: Optional[float] = None
     average_heartrate: Optional[float] = None
     max_heartrate: Optional[float] = None
+    average_cadence: Optional[float] = None
     
     class Config:
         from_attributes = True
