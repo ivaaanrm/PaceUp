@@ -1,7 +1,7 @@
 from fastapi import FastAPI
 from fastapi.middleware.cors import CORSMiddleware
 
-from app.api.v1 import strava, analysis
+from app.api.v1 import strava, analysis, cache
 from app.core.config import config
 from app.core.logging import setup_logging
 from app.db.schema import Base, engine
@@ -28,6 +28,7 @@ app.add_middleware(
 # Register routes
 app.include_router(strava.router, prefix="/api/v1")
 app.include_router(analysis.router, prefix="/api/v1")
+app.include_router(cache.router, prefix="/api/v1")
 
 
 @app.get("/")

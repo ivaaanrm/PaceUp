@@ -11,6 +11,11 @@ class Config(BaseSettings):
     # Database Configuration
     database_url: str = "postgresql://postgres:postgres@localhost:5432/paceup"
     
+    # Redis Configuration
+    redis_url: str = "redis://localhost:6379/0"
+    redis_cache_ttl: int = 3600  # Default cache TTL in seconds (1 hour)
+    redis_strava_cache_ttl: int = 300  # Strava API cache TTL (5 minutes)
+    
     # Strava API Configuration
     strava_client_id: str = ""
     strava_client_secret: str = ""

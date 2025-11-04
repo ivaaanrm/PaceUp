@@ -10,6 +10,7 @@ PaceUp is a full-stack application that integrates with the Strava API to retrie
 - 📊 **Athlete Stats** - Retrieve athlete statistics (recent, YTD, all-time)
 - 📈 **Lap Data** - Store and retrieve lap-by-lap metrics
 - 🤖 **AI-Powered Analysis** - Training insights using OpenAI
+- ⚡️ **Redis Caching** - High-performance caching for API responses
 - 🗄️ **PostgreSQL Database** - Persistent storage for all your data
 - 📦 **Docker Support** - Complete containerized deployment
 
@@ -72,6 +73,7 @@ docker-compose up --build
 
 This will start:
 - **PostgreSQL Database** on `localhost:5432`
+- **Redis Cache** on `localhost:6379`
 - **Backend API** on `http://localhost:8000`
 - **Frontend** on `http://localhost:3000`
 
@@ -185,6 +187,13 @@ pnpm dev
 - `GET /api/v1/strava/activities/{id}` - Get specific activity
 - `GET /api/v1/strava/activities/{id}/laps` - Get activity laps
 
+### Cache Management
+
+- `GET /api/v1/cache/stats` - Get cache statistics and hit rate
+- `GET /api/v1/cache/health` - Check Redis health status
+- `POST /api/v1/cache/invalidate` - Invalidate cache by pattern
+- `POST /api/v1/cache/flush` - Flush all cache data
+
 ### Example Requests
 
 ```bash
@@ -261,6 +270,11 @@ OPENAI_MODEL=gpt-4
 # Database (use 'db' for Docker, 'localhost' for local dev)
 DATABASE_URL=postgresql://postgres:postgres@db:5432/paceup
 
+# Redis (use 'redis' for Docker, 'localhost' for local dev)
+REDIS_URL=redis://redis:6379/0
+REDIS_CACHE_TTL=3600
+REDIS_STRAVA_CACHE_TTL=300
+
 # App
 APP_NAME=PaceUp
 DEBUG=True
@@ -288,8 +302,10 @@ NEXT_PUBLIC_API_URL=http://localhost:8000
 - **FastAPI** - Modern Python web framework
 - **SQLAlchemy** - ORM for database operations
 - **PostgreSQL** - Relational database
+- **Redis** - In-memory caching for performance
 - **Pydantic** - Data validation
 - **Requests** - HTTP library for Strava API
+- **OpenAI API** - AI-powered training insights
 
 ### Frontend
 - **Next.js 15** - React framework with App Router

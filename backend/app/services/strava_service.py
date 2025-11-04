@@ -5,6 +5,7 @@ from datetime import datetime, timedelta
 import logging
 
 from app.core.config import config
+from app.services.redis_service import redis_service
 
 logger = logging.getLogger(__name__)
 
@@ -83,8 +84,22 @@ class StravaService:
         Returns:
             Athlete data as a dictionary
         """
-        logger.info("Fetching athlete profile")
-        return self._make_request('/athlete')
+        cache_key = "strava:athlete:profile"
+        
+        # Try to get from cache
+        cached_data = redis_service.get(cache_key)
+        if cached_data:
+            logger.info("Fetching athlete profile from cache")
+            return cached_data
+        
+        # Fetch from API
+        logger.info("Fetching athlete profile from Strava API")
+        athlete_data = self._make_request('/athlete')
+        
+        # Cache for 1 hour (profile doesn't change often)
+        redis_service.set(cache_key, athlete_data, ttl=3600)
+        
+        return athlete_data
     
     def get_athlete_stats(self, athlete_id: int) -> Dict[str, Any]:
         """
@@ -96,8 +111,22 @@ class StravaService:
         Returns:
             Athlete stats as a dictionary
         """
-        logger.info(f"Fetching stats for athlete {athlete_id}")
-        return self._make_request(f'/athletes/{athlete_id}/stats')
+        cache_key = f"strava:athlete:{athlete_id}:stats"
+        
+        # Try to get from cache
+        cached_data = redis_service.get(cache_key)
+        if cached_data:
+            logger.info(f"Fetching stats for athlete {athlete_id} from cache")
+            return cached_data
+        
+        # Fetch from API
+        logger.info(f"Fetching stats for athlete {athlete_id} from Strava API")
+        stats_data = self._make_request(f'/athletes/{athlete_id}/stats')
+        
+        # Cache for 5 minutes (stats update more frequently)
+        redis_service.set(cache_key, stats_data, ttl=config.redis_strava_cache_ttl)
+        
+        return stats_data
     
     def get_activities(
         self,
@@ -142,12 +171,26 @@ class StravaService:
         Returns:
             Detailed activity data as a dictionary
         """
+        cache_key = f"strava:activity:{activity_id}:efforts_{include_all_efforts}"
+        
+        # Try to get from cache
+        cached_data = redis_service.get(cache_key)
+        if cached_data:
+            logger.info(f"Fetching activity {activity_id} from cache")
+            return cached_data
+        
         params = {}
         if include_all_efforts:
             params['include_all_efforts'] = 'true'
         
-        logger.info(f"Fetching activity {activity_id}")
-        return self._make_request(f'/activities/{activity_id}', params=params)
+        # Fetch from API
+        logger.info(f"Fetching activity {activity_id} from Strava API")
+        activity_data = self._make_request(f'/activities/{activity_id}', params=params)
+        
+        # Cache for 30 minutes (activities don't change once completed)
+        redis_service.set(cache_key, activity_data, ttl=1800)
+        
+        return activity_data
     
     def get_activity_laps(self, activity_id: int) -> List[Dict[str, Any]]:
         """
@@ -159,8 +202,22 @@ class StravaService:
         Returns:
             List of lap dictionaries
         """
-        logger.info(f"Fetching laps for activity {activity_id}")
-        return self._make_request(f'/activities/{activity_id}/laps')
+        cache_key = f"strava:activity:{activity_id}:laps"
+        
+        # Try to get from cache
+        cached_data = redis_service.get(cache_key)
+        if cached_data:
+            logger.info(f"Fetching laps for activity {activity_id} from cache")
+            return cached_data
+        
+        # Fetch from API
+        logger.info(f"Fetching laps for activity {activity_id} from Strava API")
+        laps_data = self._make_request(f'/activities/{activity_id}/laps')
+        
+        # Cache for 30 minutes (laps don't change once activity is completed)
+        redis_service.set(cache_key, laps_data, ttl=1800)
+        
+        return laps_data
     
     def get_all_activities(
         self,
@@ -208,6 +265,35 @@ class StravaService:
         
         logger.info(f"Total activities fetched: {len(all_activities)}")
         return all_activities
+    
+    def invalidate_cache(self, pattern: Optional[str] = None) -> int:
+        """
+        Invalidate cached Strava data.
+        
+        Args:
+            pattern: Cache key pattern to invalidate (e.g., "strava:athlete:*")
+                    If None, invalidates all Strava cache
+            
+        Returns:
+            Number of keys deleted
+        """
+        pattern = pattern or "strava:*"
+        deleted = redis_service.delete_pattern(pattern)
+        logger.info(f"Invalidated {deleted} cache keys matching pattern: {pattern}")
+        return deleted
+    
+    def invalidate_activity_cache(self, activity_id: int) -> int:
+        """
+        Invalidate cache for a specific activity.
+        
+        Args:
+            activity_id: The Strava activity ID
+            
+        Returns:
+            Number of keys deleted
+        """
+        pattern = f"strava:activity:{activity_id}:*"
+        return self.invalidate_cache(pattern)
 
 
 # Singleton instance
