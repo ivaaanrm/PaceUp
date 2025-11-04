@@ -1,222 +1,258 @@
-# PaceUp - Garmin Activity Analytics Platform
+# PaceUp - Strava Activity Tracker
 
-PaceUp is a comprehensive platform for uploading, processing, and analyzing Garmin .fit files. Track your activities, view detailed metrics, and achieve your fitness goals with powerful analytics and achievement tracking.
+PaceUp is a FastAPI application that integrates with the Strava API to retrieve and store your running activities, laps, and athlete statistics in a PostgreSQL database.
 
 ## Features
 
-- 📁 **File Upload**: Drag & drop Garmin .fit files for processing
-- 📊 **Activity Analytics**: Detailed metrics including pace, heart rate zones, power zones, and splits
-- 🏆 **Achievement System**: Weekly, monthly, and yearly achievement tracking
-- 📈 **Dashboard**: Beautiful visualizations of your activity data
-- 🎯 **Performance Tracking**: Monitor progress over time with trend analysis
-- 🔄 **Real-time Processing**: Instant analysis of uploaded activities
-
-## Tech Stack
-
-### Backend
-- **FastAPI** - Modern Python web framework
-- **Supabase** - PostgreSQL database with real-time features
-- **FitParse** - Garmin .fit file parsing
-- **Pandas/NumPy** - Data processing and analysis
-
-### Frontend
-- **Next.js 14** - React framework with App Router
-- **Tailwind CSS** - Utility-first CSS framework
-- **Radix UI** - Accessible component primitives
-- **Recharts** - Chart library for data visualization
-- **Lucide React** - Beautiful icons
+- 🏃 Fetch and store activities from Strava
+- 📊 Retrieve lap data for detailed activity analysis
+- 👤 Store athlete profile and statistics
+- 🗄️ PostgreSQL database for persistent storage
+- 🔄 Automatic token refresh for Strava API
+- 📦 Docker support for easy deployment
 
 ## Prerequisites
 
-Before running PaceUp, you'll need:
+- Python 3.13+
+- Docker and Docker Compose (optional, for containerized deployment)
+- Strava API credentials (Client ID, Client Secret, Refresh Token)
 
-1. **Python 3.12+** with uv package manager
-2. **Node.js 18+** with npm/pnpm
-3. **Supabase Project** - Create one at [supabase.com](https://supabase.com)
+## Getting Started
 
-## Quick Start
+### 1. Set Up Environment Variables
 
-### 1. Clone the Repository
-
-```bash
-git clone <your-repo-url>
-cd PaceUp
-```
-
-### 2. Set up Supabase
-
-1. Create a new project at [supabase.com](https://supabase.com)
-2. Go to Project Settings > API and copy:
-   - Project URL: `https://your-project-id.supabase.co`
-   - Anon public key
-   - Service role key (for backend)
-
-3. Run the database schema:
-   - Go to SQL Editor in your Supabase dashboard
-   - Copy and paste the contents of `backend/database_schema.sql`
-   - Run the script to create all tables and policies
-
-### 3. Backend Setup
+Create a `.env` file in the project root:
 
 ```bash
-cd backend
-
-# Install dependencies using uv
-uv pip install -e .
-
-# Create environment file
-cp env.example .env
-
-# Edit .env with your Supabase credentials
-# SUPABASE_URL=https://your-project-id.supabase.co
-# SUPABASE_KEY=your_anon_key
-# SUPABASE_SERVICE_ROLE_KEY=your_service_role_key
-# SECRET_KEY=your_secret_key_here
-
-# Start the development server
-uvicorn main:app --reload
+cp .env.example .env
 ```
 
-The backend will be available at `http://localhost:8000`
+Edit the `.env` file and add your Strava API credentials:
 
-### 4. Frontend Setup
+```env
+# Strava API Credentials
+STRAVA_CLIENT_ID=your_client_id_here
+STRAVA_CLIENT_SECRET=your_client_secret_here
+STRAVA_REFRESH_TOKEN=your_refresh_token_here
+
+# Database Configuration
+DATABASE_URL=postgresql://postgres:postgres@localhost:5432/paceup
+
+# Application Settings
+APP_NAME=PaceUp
+DEBUG=True
+```
+
+### 2. Install Dependencies
+
+Using `uv` (recommended):
 
 ```bash
-cd frontend
-
-# Install dependencies
-npm install
-# or
-pnpm install
-
-# Create environment file
-cp .env.example .env.local
-
-# Edit .env.local with your configuration
-# NEXT_PUBLIC_API_URL=http://localhost:8000
-# NEXT_PUBLIC_SUPABASE_URL=https://your-project-id.supabase.co
-# NEXT_PUBLIC_SUPABASE_ANON_KEY=your_anon_key
-
-# Start the development server
-npm run dev
-# or
-pnpm dev
+uv sync
 ```
 
-The frontend will be available at `http://localhost:3000`
-
-## Docker Setup (Alternative)
-
-For easier deployment, you can use Docker Compose:
+Or using pip:
 
 ```bash
-# Create environment variables
-cp backend/env.example backend/.env
-# Edit backend/.env with your Supabase credentials
-
-# Build and run with Docker Compose
-docker-compose up --build
+pip install -e .
 ```
 
-## Usage
+### 3. Start the Database
 
-### Uploading Activities
+Using Docker Compose:
 
-1. Navigate to the "Upload Activity" tab
-2. Drag and drop your Garmin .fit files or click to select
-3. Files will be automatically processed and analyzed
-4. View your activity appear in the dashboard
+```bash
+docker-compose up -d db
+```
 
-### Dashboard Features
+This will start a PostgreSQL database on port 5432.
 
-- **Weekly Metrics**: Distance, activities, time, and pace with week-over-week comparisons
-- **Activity Types**: Visual breakdown of different activity types
-- **Achievements**: Automatic achievement tracking for distance, frequency, and duration
-- **Monthly/Yearly Overview**: Long-term progress tracking
-- **Recent Activities**: Quick overview of your latest uploads
-- **Trends**: Weekly distance trending chart
+### 4. Start the Server
 
-### API Endpoints
+Development mode:
 
-The backend provides a comprehensive REST API:
+```bash
+uv run uvicorn app.main:app --reload
+```
 
-- `POST /api/v1/activities/upload` - Upload and process .fit files
-- `GET /api/v1/activities/` - List activities with filtering
-- `GET /api/v1/activities/{id}` - Get specific activity details
-- `GET /api/v1/activities/{id}/metrics` - Get detailed activity metrics
-- `GET /api/v1/dashboard/overview` - Get dashboard overview
-- `GET /api/v1/dashboard/weekly-summary` - Get weekly trend data
-- `GET /api/v1/dashboard/achievements` - Get achievement data
+The API will be available at `http://localhost:8000`
 
-Full API documentation is available at `http://localhost:8000/docs`
+### 5. Access the API Documentation
+
+Open your browser and navigate to:
+
+- Swagger UI: `http://localhost:8000/docs`
+- ReDoc: `http://localhost:8000/redoc`
+
+## API Endpoints
+
+### Strava Integration
+
+#### Get Athlete Profile
+
+Fetch and save your Strava athlete profile:
+
+```bash
+curl -X GET "http://localhost:8000/api/v1/strava/athlete"
+```
+
+#### Get Athlete Statistics
+
+Fetch athlete statistics from Strava:
+
+```bash
+curl -X GET "http://localhost:8000/api/v1/strava/athlete/stats"
+```
+
+#### Sync All Activities
+
+Sync all activities from Strava to the database:
+
+```bash
+curl -X POST "http://localhost:8000/api/v1/strava/sync/activities"
+```
+
+With date filters:
+
+```bash
+curl -X POST "http://localhost:8000/api/v1/strava/sync/activities?after=2024-01-01T00:00:00&before=2024-12-31T23:59:59"
+```
+
+#### Sync Activity Laps
+
+Sync laps for a specific activity:
+
+```bash
+curl -X POST "http://localhost:8000/api/v1/strava/sync/activity/12345678/laps"
+```
+
+#### Sync Everything
+
+Sync athlete profile, activities, and laps in one request:
+
+```bash
+curl -X POST "http://localhost:8000/api/v1/strava/sync/all?include_laps=true"
+```
+
+#### Get Activities from Database
+
+Get stored activities:
+
+```bash
+curl -X GET "http://localhost:8000/api/v1/strava/activities?limit=50"
+```
+
+#### Get Specific Activity
+
+```bash
+curl -X GET "http://localhost:8000/api/v1/strava/activities/12345678"
+```
+
+#### Get Activity Laps
+
+```bash
+curl -X GET "http://localhost:8000/api/v1/strava/activities/12345678/laps"
+```
 
 ## Database Schema
 
-The application uses the following main tables:
+### Athletes Table
 
-- **users** - User profiles and preferences
-- **activities** - Core activity data from .fit files
-- **activity_metrics** - Detailed analysis (zones, splits, pace)
-- **achievements** - User achievement tracking
-- **user_preferences** - Individual user settings
+Stores Strava athlete information including username, location, and profile details.
 
-All tables include Row Level Security (RLS) policies for data protection.
+### Activities Table
+
+Stores activity data including:
+- Distance, time, elevation
+- Performance metrics (speed, heart rate, cadence)
+- Location data
+- Raw JSON data from Strava
+
+### Laps Table
+
+Stores lap data for activities including:
+- Per-lap metrics (distance, time, pace)
+- Heart rate and cadence data
+- Pace zones
+
+## Docker Deployment
+
+### Build and Run with Docker Compose
+
+```bash
+docker-compose up --build
+```
+
+This will start both the PostgreSQL database and the FastAPI application.
+
+### Access the Application
+
+- API: `http://localhost:8000`
+- API Docs: `http://localhost:8000/docs`
+
+## Getting Strava API Credentials
+
+1. Create a Strava API application at: https://www.strava.com/settings/api
+2. Note your Client ID and Client Secret
+3. Get a refresh token by following Strava's OAuth flow
+4. Add these credentials to your `.env` file
+
+### Example: Getting a Refresh Token
+
+Use the following curl command to exchange an authorization code for a refresh token:
+
+```bash
+curl -X POST https://www.strava.com/api/v3/oauth/token \
+  -d client_id=YOUR_CLIENT_ID \
+  -d client_secret=YOUR_CLIENT_SECRET \
+  -d code=AUTHORIZATION_CODE \
+  -d grant_type=authorization_code
+```
 
 ## Development
 
-### Adding New Features
+### Running Tests
 
-1. **Backend**: Add new endpoints in `app/api/routes/`
-2. **Frontend**: Create components in `src/components/`
-3. **Database**: Add migrations to `backend/database_schema.sql`
+```bash
+uv run pytest
+```
 
-### Testing .fit Files
+### Database Migrations
 
-You can find sample .fit files from:
-- Garmin Connect exports
-- Strava data exports
-- Sample files from garmin-fit-sdk
+The application automatically creates database tables on startup. For production, consider using Alembic for migrations.
 
-## Deployment
+## Project Structure
 
-### Production Backend
-
-1. Deploy to your preferred platform (Railway, Render, etc.)
-2. Set environment variables
-3. Ensure Supabase database is accessible
-
-### Production Frontend
-
-1. Deploy to Vercel, Netlify, or similar
-2. Set environment variables
-3. Update API_URL to your backend domain
-
-## Contributing
-
-1. Fork the repository
-2. Create a feature branch
-3. Make your changes
-4. Add tests if applicable
-5. Submit a pull request
+```
+PaceUp/
+├── app/
+│   ├── api/
+│   │   └── v1/
+│   │       ├── strava.py      # Strava API endpoints
+│   │       └── user.py        # User endpoints
+│   ├── core/
+│   │   ├── config.py          # Configuration settings
+│   │   └── logging.py         # Logging setup
+│   ├── db/
+│   │   └── schema.py          # Database models
+│   ├── models/
+│   │   └── strava.py          # Pydantic models
+│   ├── services/
+│   │   ├── strava_service.py  # Strava API client
+│   │   └── strava_db_service.py # Database operations
+│   └── main.py                # Application entry point
+├── tests/
+├── .env.example
+├── docker-compose.yaml
+├── Dockerfile
+├── pyproject.toml
+└── README.md
+```
 
 ## License
 
-This project is licensed under the MIT License - see the LICENSE file for details.
+MIT
 
-## Support
+## Contributing
 
-If you encounter any issues:
-
-1. Check the API documentation at `/docs`
-2. Verify your Supabase configuration
-3. Ensure .fit files are valid Garmin exports
-4. Check the console for error messages
-
-## Roadmap
-
-- [ ] User authentication and multi-user support
-- [ ] Advanced analytics (training zones, fitness trends)
-- [ ] Goal setting and tracking
-- [ ] Social features and challenges
-- [ ] Mobile app companion
-- [ ] Integration with other fitness platforms
+Pull requests are welcome! For major changes, please open an issue first to discuss what you would like to change.
