@@ -6,6 +6,9 @@ import { stravaAPI, type Activity, formatDistance, formatDuration, formatPace, f
 import { Button } from "@/components/Button"
 import { RiRefreshLine, RiRunLine, RiArrowRightLine } from "@remixicon/react"
 
+// Training start date - only show activities from this date onwards
+const TRAINING_START_DATE = new Date('2025-09-01')
+
 export default function ActivitiesPage() {
   const router = useRouter()
   const [activities, setActivities] = useState<Activity[]>([])
@@ -21,8 +24,14 @@ export default function ActivitiesPage() {
     try {
       setLoading(true)
       setError(null)
-      const data = await stravaAPI.getActivities(50)
-      setActivities(data)
+      const data = await stravaAPI.getActivities(200)
+      
+      // Filter activities from training start date
+      const filteredData = data.filter(activity => 
+        new Date(activity.start_date) >= TRAINING_START_DATE
+      )
+      
+      setActivities(filteredData)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load activities')
       console.error('Error loading activities:', err)
@@ -79,10 +88,10 @@ export default function ActivitiesPage() {
       <div className="mb-8 flex items-center justify-between">
         <div>
           <h1 className="text-3xl font-bold text-gray-900 dark:text-gray-50">
-            Activities
+            Training Activities
           </h1>
           <p className="mt-2 text-gray-500 dark:text-gray-400">
-            {activities.length} activities loaded
+            {activities.length} activities since September 1, 2025
           </p>
         </div>
         <Button onClick={handleSync} disabled={syncing}>
