@@ -208,10 +208,10 @@ export default function DashboardPage() {
         ? heartRates.reduce((sum, hr) => sum + hr, 0) / heartRates.length
         : null
 
-      // Calculate average cadence
+      // Calculate average cadence (multiply by 2 as Strava returns steps per foot, not total steps)
       const cadences = lapList
         .filter(lap => lap.average_cadence !== null && lap.average_cadence !== undefined)
-        .map(lap => lap.average_cadence!)
+        .map(lap => lap.average_cadence! * 2) // Convert to total steps per minute
       const avgCadence = cadences.length > 0
         ? cadences.reduce((sum, c) => sum + c, 0) / cadences.length
         : null
@@ -288,10 +288,10 @@ export default function DashboardPage() {
           ? heartRates.reduce((sum, hr) => sum + hr, 0) / heartRates.length
           : null
 
-        // Average cadence
+        // Average cadence (multiply by 2 as Strava returns steps per foot, not total steps)
         const cadences = weekLaps
           .filter(lap => lap.average_cadence !== null && lap.average_cadence !== undefined)
-          .map(lap => lap.average_cadence!)
+          .map(lap => lap.average_cadence! * 2) // Convert to total steps per minute
         avgCadence = cadences.length > 0
           ? cadences.reduce((sum, c) => sum + c, 0) / cadences.length
           : null
@@ -1173,20 +1173,38 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Charts */}
-      <div className="mb-8 space-y-8">
-        {/* Lap Pace Scatter Plot */}
+      {/* Charts - Accordions */}
+      <div className="mb-8 space-y-4">
+        {/* Lap Pace Over Time - Accordion */}
         {laps.length > 0 && (
-          <div>
-            <LapPaceChart laps={laps} />
-          </div>
+          <Accordion type="single" collapsible className="rounded-lg border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
+            <AccordionItem value="lap-pace">
+              <AccordionTrigger className="px-6">
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-50">
+                  Lap Pace Over Time
+                </h2>
+              </AccordionTrigger>
+              <AccordionContent className="px-6">
+                <LapPaceChart laps={laps} />
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
         )}
 
-        {/* Lap Heart Rate Scatter Plot */}
+        {/* Lap Heart Rate Over Time - Accordion */}
         {laps.length > 0 && (
-          <div>
-            <LapHeartRateChart laps={laps} />
-          </div>
+          <Accordion type="single" collapsible className="rounded-lg border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
+            <AccordionItem value="lap-heartrate">
+              <AccordionTrigger className="px-6">
+                <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-50">
+                  Lap Heart Rate Over Time
+                </h2>
+              </AccordionTrigger>
+              <AccordionContent className="px-6">
+                <LapHeartRateChart laps={laps} />
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
         )}
       </div>
 
