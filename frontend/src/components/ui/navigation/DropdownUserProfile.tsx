@@ -134,8 +134,8 @@ export function DropdownUserProfile({
 
       {/* Login Dialog */}
       {showLoginDialog && (
-        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50" onClick={() => setShowLoginDialog(false)}>
-          <div className="bg-white dark:bg-gray-900 rounded-lg p-6 w-full max-w-md" onClick={(e) => e.stopPropagation()}>
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setShowLoginDialog(false)}>
+          <div className="bg-white dark:bg-gray-900 rounded-lg p-6 w-full max-w-md mx-auto" onClick={(e) => e.stopPropagation()}>
             <h2 className="text-2xl font-bold mb-4 text-gray-900 dark:text-gray-50">
               Sign In
             </h2>

@@ -201,9 +201,40 @@ class StravaDBService:
         return laps
     
     @staticmethod
+    def save_athlete_stats(db: Session, athlete_id: int, stats_data: Dict[str, Any]) -> Athlete:
+        """
+        Save or update athlete stats in the database.
+        
+        Args:
+            db: Database session
+            athlete_id: The athlete ID
+            stats_data: Stats data from Strava API
+            
+        Returns:
+            Athlete object
+        """
+        athlete = db.query(Athlete).filter(Athlete.id == athlete_id).first()
+        
+        if athlete:
+            athlete.stats = stats_data
+            athlete.stats_updated_at = datetime.utcnow()
+            logger.info(f"Updated stats for athlete {athlete_id}")
+        else:
+            raise ValueError(f"Athlete {athlete_id} not found in database")
+        
+        db.commit()
+        db.refresh(athlete)
+        return athlete
+    
+    @staticmethod
     def get_athlete(db: Session, athlete_id: int) -> Optional[Athlete]:
         """Get athlete by ID"""
         return db.query(Athlete).filter(Athlete.id == athlete_id).first()
+    
+    @staticmethod
+    def get_first_athlete(db: Session) -> Optional[Athlete]:
+        """Get the first athlete from the database (useful when there's only one Strava account)"""
+        return db.query(Athlete).first()
     
     @staticmethod
     def get_activities(db: Session, athlete_id: int, limit: int = 100) -> List[Activity]:

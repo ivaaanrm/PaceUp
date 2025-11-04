@@ -376,43 +376,61 @@ export default function DashboardPage() {
             <h2 className="mb-4 text-xl font-semibold text-gray-900 dark:text-gray-50">
               Personal Bests (Since Sept 1, 2025)
             </h2>
-            <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-3">
-              {personalBests.map((pb) => (
-                <div
-                  key={pb.distance}
-                  className={`rounded-lg border p-6 ${
-                    pb.time
-                      ? 'border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950/30'
-                      : 'border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-900/50'
-                  }`}
-                >
-                  <div className="text-center">
-                    <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
-                      {pb.distance}
-                    </p>
-                    {pb.time ? (
-                      <>
-                        <p className="mt-2 text-2xl font-bold text-gray-900 dark:text-gray-50">
-                          {formatTime(pb.time)}
-                        </p>
-                        <p className="mt-1 text-sm text-green-600 dark:text-green-400">
-                          {formatPaceFromMinPerKm(pb.pace)} /km
-                        </p>
-                        <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
-                          {new Date(pb.date!).toLocaleDateString('en-US', {
-                            month: 'short',
-                            day: 'numeric',
-                          })}
-                        </p>
-                      </>
-                    ) : (
-                      <p className="mt-2 text-sm text-gray-400 dark:text-gray-600">
-                        No data
-                      </p>
-                    )}
-                  </div>
-                </div>
-              ))}
+            <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
+              <table className="w-full">
+                <thead className="border-b border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-900/50">
+                  <tr>
+                    <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900 dark:text-gray-50">
+                      Distance
+                    </th>
+                    <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900 dark:text-gray-50">
+                      Time
+                    </th>
+                    <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900 dark:text-gray-50">
+                      Pace
+                    </th>
+                    <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900 dark:text-gray-50">
+                      Date
+                    </th>
+                  </tr>
+                </thead>
+                <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
+                  {personalBests.map((pb) => (
+                    <tr
+                      key={pb.distance}
+                      className={pb.time 
+                        ? 'hover:bg-green-50 dark:hover:bg-green-950/20' 
+                        : 'hover:bg-gray-50 dark:hover:bg-gray-900/50'
+                      }
+                    >
+                      <td className="px-6 py-4 text-sm font-medium text-gray-900 dark:text-gray-50">
+                        {pb.distance}
+                      </td>
+                      <td className={`px-6 py-4 text-sm ${
+                        pb.time 
+                          ? 'font-semibold text-gray-900 dark:text-gray-50' 
+                          : 'text-gray-400 dark:text-gray-600'
+                      }`}>
+                        {pb.time ? formatTime(pb.time) : 'No data'}
+                      </td>
+                      <td className={`px-6 py-4 text-sm ${
+                        pb.time 
+                          ? 'text-green-600 dark:text-green-400' 
+                          : 'text-gray-400 dark:text-gray-600'
+                      }`}>
+                        {pb.time ? `${formatPaceFromMinPerKm(pb.pace)} /km` : '-'}
+                      </td>
+                      <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">
+                        {pb.date ? new Date(pb.date).toLocaleDateString('en-US', {
+                          month: 'short',
+                          day: 'numeric',
+                          year: 'numeric',
+                        }) : '-'}
+                      </td>
+                    </tr>
+                  ))}
+                </tbody>
+              </table>
             </div>
           </div>
         )}

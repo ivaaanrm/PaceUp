@@ -6,6 +6,7 @@ import logging
 
 from app.db.schema import SessionLocal, User
 from app.services.strava_service import strava_service
+from app.services.strava_db_service import strava_db_service
 from app.services.ai_analysis_service import ai_analysis_service
 from app.models.analysis import (
     TrainingAnalysisResponse,
@@ -42,15 +43,17 @@ async def generate_analysis(
     Requires authentication.
     """
     try:
-        # Get the authenticated athlete
-        athlete_data = strava_service.get_athlete()
-        athlete_id = athlete_data.get('id')
+        # Get athlete from database
+        athlete = strava_db_service.get_first_athlete(db)
+        
+        if not athlete:
+            raise HTTPException(status_code=404, detail="Athlete not found. Please sync activities first.")
         
         # Generate the analysis
-        logger.info(f"Generating analysis for athlete {athlete_id} (last {request.days} days)")
+        logger.info(f"Generating analysis for athlete {athlete.id} (last {request.days} days)")
         analysis = ai_analysis_service.generate_training_analysis(
             db=db,
-            athlete_id=athlete_id,
+            athlete_id=athlete.id,
             days=request.days
         )
         
@@ -73,12 +76,14 @@ async def get_latest_analysis(db: Session = Depends(get_db)):
     Returns null if no analysis exists.
     """
     try:
-        # Get the authenticated athlete
-        athlete_data = strava_service.get_athlete()
-        athlete_id = athlete_data.get('id')
+        # Get athlete from database
+        athlete = strava_db_service.get_first_athlete(db)
+        
+        if not athlete:
+            raise HTTPException(status_code=404, detail="Athlete not found. Please sync activities first.")
         
         # Get the latest analysis
-        analysis = ai_analysis_service.get_latest_analysis(db, athlete_id)
+        analysis = ai_analysis_service.get_latest_analysis(db, athlete.id)
         
         if not analysis:
             return None
@@ -98,12 +103,14 @@ async def get_analysis_history(
     Get the history of training analyses for the authenticated athlete.
     """
     try:
-        # Get the authenticated athlete
-        athlete_data = strava_service.get_athlete()
-        athlete_id = athlete_data.get('id')
+        # Get athlete from database
+        athlete = strava_db_service.get_first_athlete(db)
+        
+        if not athlete:
+            raise HTTPException(status_code=404, detail="Athlete not found. Please sync activities first.")
         
         # Get all analyses
-        analyses = ai_analysis_service.get_all_analyses(db, athlete_id, limit)
+        analyses = ai_analysis_service.get_all_analyses(db, athlete.id, limit)
         
         return [TrainingAnalysisResponse.model_validate(a) for a in analyses]
     except Exception as e:
@@ -130,10 +137,12 @@ async def get_analysis(
             raise HTTPException(status_code=404, detail="Analysis not found")
         
         # Verify the analysis belongs to the authenticated athlete
-        athlete_data = strava_service.get_athlete()
-        athlete_id = athlete_data.get('id')
+        athlete = strava_db_service.get_first_athlete(db)
         
-        if analysis.athlete_id != athlete_id:
+        if not athlete:
+            raise HTTPException(status_code=404, detail="Athlete not found. Please sync activities first.")
+        
+        if analysis.athlete_id != athlete.id:
             raise HTTPException(status_code=403, detail="Access denied")
         
         return TrainingAnalysisResponse.model_validate(analysis)
