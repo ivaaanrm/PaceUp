@@ -5,11 +5,13 @@ import { useRouter } from "next/navigation"
 import { stravaAPI, type Activity, formatDistance, formatDuration, formatPace, formatDate } from "@/lib/api"
 import { Button } from "@/components/Button"
 import { RiRefreshLine, RiRunLine, RiArrowRightLine } from "@remixicon/react"
+import { useAuth } from "@/contexts/AuthContext"
 
 // Training start date - only show activities from this date onwards
 const TRAINING_START_DATE = new Date('2025-09-01')
 
 export default function ActivitiesPage() {
+  const { isAuthenticated } = useAuth()
   const router = useRouter()
   const [activities, setActivities] = useState<Activity[]>([])
   const [loading, setLoading] = useState(true)
@@ -94,7 +96,7 @@ export default function ActivitiesPage() {
             {activities.length} activities since September 1, 2025
           </p>
         </div>
-        <Button onClick={handleSync} disabled={syncing}>
+        <Button onClick={handleSync} disabled={syncing || !isAuthenticated} title={!isAuthenticated ? "Please sign in to sync activities" : ""}>
           <RiRefreshLine className={`mr-2 h-4 w-4 ${syncing ? 'animate-spin' : ''}`} />
           {syncing ? 'Syncing...' : 'Sync Activities'}
         </Button>

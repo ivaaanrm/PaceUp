@@ -5,8 +5,10 @@ import { useRouter, useParams } from "next/navigation"
 import { stravaAPI, type Activity, type Lap, formatDistance, formatDuration, formatPace, formatSpeed, formatDate } from "@/lib/api"
 import { Button } from "@/components/Button"
 import { RiArrowLeftLine, RiRefreshLine, RiRunLine } from "@remixicon/react"
+import { useAuth } from "@/contexts/AuthContext"
 
 export default function ActivityDetailPage() {
+  const { isAuthenticated } = useAuth()
   const router = useRouter()
   const params = useParams()
   const activityId = parseInt(params.id as string)
@@ -193,7 +195,7 @@ export default function ActivityDetailPage() {
             Laps {laps.length > 0 && `(${laps.length})`}
           </h2>
           {laps.length === 0 && (
-            <Button className="h-9 px-3 text-sm" onClick={handleSyncLaps} disabled={syncing}>
+            <Button className="h-9 px-3 text-sm" onClick={handleSyncLaps} disabled={syncing || !isAuthenticated} title={!isAuthenticated ? "Please sign in to sync laps" : ""}>
               <RiRefreshLine className={`mr-2 h-4 w-4 ${syncing ? 'animate-spin' : ''}`} />
               {syncing ? 'Syncing...' : 'Sync Laps'}
             </Button>
