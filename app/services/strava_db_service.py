@@ -237,6 +237,7 @@ class StravaDBService:
             Lap.moving_time,
             Lap.average_speed,
             Lap.average_heartrate,
+            Lap.average_cadence,
             Activity.start_date,
             Activity.name.label('activity_name')
         ).join(
@@ -257,6 +258,7 @@ class StravaDBService:
                 'moving_time': lap.moving_time,
                 'average_speed': lap.average_speed,
                 'average_heartrate': lap.average_heartrate,
+                'average_cadence': lap.average_cadence,
                 'start_date': lap.start_date.isoformat()
             }
             for lap in results

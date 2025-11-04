@@ -375,3 +375,5 @@ uv.lock
 # Temporary files
 *.tmp
 *.temp
+
+.pnpm-store

@@ -157,11 +157,50 @@ export default function DashboardPage() {
     }
   }, [activities])
 
+  // Calculate Personal Bests for different distances
+  const personalBests = useMemo(() => {
+    const distanceTargets = [
+      { name: '1km', meters: 1000, tolerance: 50 },
+      { name: '5km', meters: 5000, tolerance: 250 },
+      { name: '10km', meters: 10000, tolerance: 500 },
+      { name: '15km', meters: 15000, tolerance: 750 },
+      { name: '20km', meters: 20000, tolerance: 1000 },
+    ]
+
+    return distanceTargets.map(({ name, meters, tolerance }) => {
+      // Find activities within the distance range
+      const matchingActivities = activities.filter(a => 
+        Math.abs(a.distance - meters) <= tolerance && a.moving_time > 0
+      )
+
+      if (matchingActivities.length === 0) {
+        return { distance: name, time: null, pace: null, date: null }
+      }
+
+      // Find the fastest one (shortest time)
+      const best = matchingActivities.reduce((fastest, current) => 
+        current.moving_time < fastest.moving_time ? current : fastest
+      )
+
+      // Calculate pace (min/km)
+      const paceMinPerKm = best.average_speed ? 1000 / (best.average_speed * 60) : null
+
+      return {
+        distance: name,
+        time: best.moving_time,
+        pace: paceMinPerKm,
+        date: best.start_date,
+        activity: best,
+      }
+    })
+  }, [activities])
+
   const handleSync = async () => {
     try {
       setSyncing(true)
       setError(null)
-      await stravaAPI.syncAll(false)
+      // Sync all activities and laps
+      await stravaAPI.syncAll(true) // true = include laps
       await loadData()
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to sync data')
@@ -203,7 +242,19 @@ export default function DashboardPage() {
   const formatTime = (seconds: number) => {
     const hours = Math.floor(seconds / 3600)
     const minutes = Math.floor((seconds % 3600) / 60)
-    return `${hours}h ${minutes}m`
+    const secs = seconds % 60
+    
+    if (hours > 0) {
+      return `${hours}:${minutes.toString().padStart(2, '0')}:${secs.toString().padStart(2, '0')}`
+    }
+    return `${minutes}:${secs.toString().padStart(2, '0')}`
+  }
+
+  const formatPaceFromMinPerKm = (minPerKm: number | null) => {
+    if (!minPerKm) return 'N/A'
+    const minutes = Math.floor(minPerKm)
+    const seconds = Math.round((minPerKm - minutes) * 60)
+    return `${minutes}:${seconds.toString().padStart(2, '0')}`
   }
 
   return (
@@ -314,7 +365,54 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Lap Pace Chart */}
+      {/* Personal Bests */}
+      {activities.length > 0 && personalBests.some(pb => pb.time !== null) && (
+        <div className="mb-8">
+          <h2 className="mb-4 text-xl font-semibold text-gray-900 dark:text-gray-50">
+            Personal Bests (Since Sept 1, 2025)
+          </h2>
+          <div className="grid grid-cols-1 gap-4 sm:grid-cols-2 lg:grid-cols-5">
+            {personalBests.map((pb) => (
+              <div
+                key={pb.distance}
+                className={`rounded-lg border p-6 ${
+                  pb.time
+                    ? 'border-green-200 bg-green-50 dark:border-green-900 dark:bg-green-950/30'
+                    : 'border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-900/50'
+                }`}
+              >
+                <div className="text-center">
+                  <p className="text-sm font-medium text-gray-500 dark:text-gray-400">
+                    {pb.distance}
+                  </p>
+                  {pb.time ? (
+                    <>
+                      <p className="mt-2 text-2xl font-bold text-gray-900 dark:text-gray-50">
+                        {formatTime(pb.time)}
+                      </p>
+                      <p className="mt-1 text-sm text-green-600 dark:text-green-400">
+                        {formatPaceFromMinPerKm(pb.pace)} /km
+                      </p>
+                      <p className="mt-2 text-xs text-gray-500 dark:text-gray-400">
+                        {new Date(pb.date!).toLocaleDateString('en-US', {
+                          month: 'short',
+                          day: 'numeric',
+                        })}
+                      </p>
+                    </>
+                  ) : (
+                    <p className="mt-2 text-sm text-gray-400 dark:text-gray-600">
+                      No data
+                    </p>
+                  )}
+                </div>
+              </div>
+            ))}
+          </div>
+        </div>
+      )}
+
+      {/* Lap Pace Scatter Plot */}
       {laps.length > 0 && (
         <div className="mb-8">
           <LapPaceChart laps={laps} />
