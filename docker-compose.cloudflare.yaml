@@ -1,0 +1,30 @@
+# Docker Compose override for Cloudflare Tunnel
+# Usage: docker-compose -f docker-compose.yaml -f docker-compose.cloudflare.yaml up -d
+#
+# REQUIRED: Before starting, set the CLOUDFLARE_TUNNEL_URL environment variable
+# and add it to ALLOWED_ORIGINS in your .env file:
+#
+# In your .env file, add:
+# CLOUDFLARE_TUNNEL_URL=https://abc123-def456-ghi789.trycloudflare.com
+# ALLOWED_ORIGINS=http://localhost:3000,http://localhost:8000,http://localhost,https://abc123-def456-ghi789.trycloudflare.com
+#
+# Or export before running:
+# export CLOUDFLARE_TUNNEL_URL=https://abc123-def456-ghi789.trycloudflare.com
+# export ALLOWED_ORIGINS=http://localhost:3000,http://localhost:8000,http://localhost,https://abc123-def456-ghi789.trycloudflare.com
+
+services:
+  backend:
+    environment:
+      # CORS: Include your Cloudflare tunnel URL in ALLOWED_ORIGINS
+      # Format: "http://localhost:3000,http://localhost:8000,http://localhost,<your-cloudflare-url>"
+      - ALLOWED_ORIGINS=${ALLOWED_ORIGINS:-http://localhost:3000,http://localhost:8000,http://localhost}
+      - DEBUG=${DEBUG:-True}
+
+  frontend:
+    environment:
+      # Frontend API URL: Use your Cloudflare tunnel URL for browser API calls
+      - NEXT_PUBLIC_BROWSER_API_URL=${CLOUDFLARE_TUNNEL_URL:-http://localhost}
+    build:
+      args:
+        - NEXT_PUBLIC_API_URL=http://backend:80
+        - NEXT_PUBLIC_BROWSER_API_URL=${CLOUDFLARE_TUNNEL_URL:-http://localhost}

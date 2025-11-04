@@ -6,6 +6,9 @@ load_dotenv()
 
 class Config(BaseSettings):
     app_name: str = "PaceUp"
+    
+    # Debug mode: Set to False in production to reduce logging
+    # Controls logging level: True = INFO+, False = ERROR+ only
     debug: bool = True
     
     # Database Configuration
