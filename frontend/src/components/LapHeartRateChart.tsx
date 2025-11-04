@@ -44,7 +44,7 @@ export function LapHeartRateChart({ laps }: LapHeartRateChartProps) {
 
   if (chartData.length === 0) {
     return (
-      <div className="flex h-80 items-center justify-center rounded-lg border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
+      <div className="flex h-80 items-center justify-center py-6">
         <p className="text-gray-500 dark:text-gray-400">
           No heart rate data available. Sync activities with laps to see the chart.
         </p>
@@ -53,10 +53,7 @@ export function LapHeartRateChart({ laps }: LapHeartRateChartProps) {
   }
 
   return (
-    <div className="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
-      <h3 className="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-50">
-        Lap Heart Rate Over Time
-      </h3>
+    <div className="py-6">
       <ResponsiveContainer width="100%" height={400}>
         <ScatterChart>
           <CartesianGrid strokeDasharray="3 3" className="stroke-gray-200 dark:stroke-gray-800" />

@@ -5,7 +5,7 @@ from typing import List, Optional
 from datetime import datetime
 import logging
 
-from app.db.schema import SessionLocal
+from app.db.schema import SessionLocal, User
 from app.services.strava_service import strava_service
 from app.services.strava_db_service import strava_db_service
 from app.models.strava import (
@@ -15,6 +15,7 @@ from app.models.strava import (
     SyncResponse,
     AthleteStatsResponse
 )
+from app.api.v1.auth import get_current_user
 
 logger = logging.getLogger(__name__)
 
@@ -33,14 +34,18 @@ def get_db():
 @router.get("/athlete", response_model=AthleteResponse)
 async def get_athlete(db: Session = Depends(get_db)):
     """
-    Get the authenticated athlete's profile from Strava and save it to the database.
+    Get the authenticated athlete's profile from the database.
+    Only fetches from Strava API if not found in database.
     """
     try:
-        # Fetch from Strava API
-        athlete_data = strava_service.get_athlete()
+        # Try to get athlete from database first
+        athlete = strava_db_service.get_first_athlete(db)
         
-        # Save to database
-        athlete = strava_db_service.save_athlete(db, athlete_data)
+        if not athlete:
+            # If not in database, fetch from Strava API
+            logger.info("Athlete not found in database, fetching from Strava API")
+            athlete_data = strava_service.get_athlete()
+            athlete = strava_db_service.save_athlete(db, athlete_data)
         
         return AthleteResponse(
             id=athlete.id,
@@ -60,19 +65,29 @@ async def get_athlete(db: Session = Depends(get_db)):
 
 
 @router.get("/athlete/stats", response_model=AthleteStatsResponse)
-async def get_athlete_stats():
+async def get_athlete_stats(db: Session = Depends(get_db)):
     """
-    Get the authenticated athlete's statistics from Strava.
+    Get the authenticated athlete's statistics from the database.
+    Only fetches from Strava API if not found in database.
     """
     try:
-        # First get the athlete to get their ID
-        athlete_data = strava_service.get_athlete()
-        athlete_id = athlete_data.get('id')
+        # Get athlete from database
+        athlete = strava_db_service.get_first_athlete(db)
         
-        # Get stats
-        stats = strava_service.get_athlete_stats(athlete_id)
+        if not athlete:
+            raise HTTPException(status_code=404, detail="Athlete not found. Please sync activities first.")
         
-        return AthleteStatsResponse(**stats)
+        # If stats exist in database, return them
+        if athlete.stats:
+            return AthleteStatsResponse(**athlete.stats)
+        
+        # If no stats in database, return empty or error
+        raise HTTPException(
+            status_code=404, 
+            detail="Athlete stats not found. Please sync activities to fetch stats."
+        )
+    except HTTPException:
+        raise
     except Exception as e:
         logger.error(f"Error fetching athlete stats: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to fetch athlete stats: {str(e)}")
@@ -82,16 +97,26 @@ async def get_athlete_stats():
 async def sync_activities(
     db: Session = Depends(get_db),
     after: Optional[datetime] = Query(None, description="Sync activities after this date"),
-    before: Optional[datetime] = Query(None, description="Sync activities before this date")
+    before: Optional[datetime] = Query(None, description="Sync activities before this date"),
+    current_user: User = Depends(get_current_user)
 ):
     """
     Sync activities from Strava to the database.
-    This will fetch all activities and store them in the database.
+    This will fetch athlete profile, stats, and all activities from Strava API and store them in the database.
+    Requires authentication.
     """
     try:
-        # Get athlete first to ensure we have the athlete record
+        # Get athlete from Strava API and save to database
         athlete_data = strava_service.get_athlete()
         athlete = strava_db_service.save_athlete(db, athlete_data)
+        
+        # Fetch and save athlete stats
+        try:
+            stats = strava_service.get_athlete_stats(athlete.id)
+            strava_db_service.save_athlete_stats(db, athlete.id, stats)
+            logger.info(f"Updated athlete stats for athlete {athlete.id}")
+        except Exception as e:
+            logger.warning(f"Could not fetch athlete stats: {str(e)}")
         
         # Fetch all activities
         activities = strava_service.get_all_activities(after=after, before=before)
@@ -117,10 +142,12 @@ async def sync_activities(
 @router.post("/sync/activity/{activity_id}/laps", response_model=SyncResponse)
 async def sync_activity_laps(
     activity_id: int,
-    db: Session = Depends(get_db)
+    db: Session = Depends(get_db),
+    current_user: User = Depends(get_current_user)
 ):
     """
     Sync laps for a specific activity from Strava.
+    Requires authentication.
     """
     try:
         # Fetch laps from Strava
@@ -143,15 +170,25 @@ async def sync_all(
     db: Session = Depends(get_db),
     after: Optional[datetime] = Query(None, description="Sync activities after this date"),
     before: Optional[datetime] = Query(None, description="Sync activities before this date"),
-    include_laps: bool = Query(False, description="Also sync laps for each activity")
+    include_laps: bool = Query(False, description="Also sync laps for each activity"),
+    current_user: User = Depends(get_current_user)
 ):
     """
-    Sync all data from Strava: athlete profile, activities, and optionally laps.
+    Sync all data from Strava: athlete profile, stats, activities, and optionally laps.
+    Requires authentication.
     """
     try:
-        # Get athlete
+        # Get athlete from Strava API and save to database
         athlete_data = strava_service.get_athlete()
         athlete = strava_db_service.save_athlete(db, athlete_data)
+        
+        # Fetch and save athlete stats
+        try:
+            stats = strava_service.get_athlete_stats(athlete.id)
+            strava_db_service.save_athlete_stats(db, athlete.id, stats)
+            logger.info(f"Updated athlete stats for athlete {athlete.id}")
+        except Exception as e:
+            logger.warning(f"Could not fetch athlete stats: {str(e)}")
         
         # Fetch all activities
         activities = strava_service.get_all_activities(after=after, before=before)
@@ -198,12 +235,14 @@ async def get_activities(
     Get activities from the database.
     """
     try:
-        # Get athlete first
-        athlete_data = strava_service.get_athlete()
-        athlete_id = athlete_data.get('id')
+        # Get athlete from database
+        athlete = strava_db_service.get_first_athlete(db)
+        
+        if not athlete:
+            raise HTTPException(status_code=404, detail="Athlete not found. Please sync activities first.")
         
         # Get activities from database
-        activities = strava_db_service.get_activities(db, athlete_id, limit)
+        activities = strava_db_service.get_activities(db, athlete.id, limit)
         
         return [
             ActivityResponse(
@@ -305,12 +344,14 @@ async def get_all_laps(
     Returns laps sorted by activity date.
     """
     try:
-        # Get athlete first
-        athlete_data = strava_service.get_athlete()
-        athlete_id = athlete_data.get('id')
+        # Get athlete from database
+        athlete = strava_db_service.get_first_athlete(db)
+        
+        if not athlete:
+            raise HTTPException(status_code=404, detail="Athlete not found. Please sync activities first.")
         
         # Get all laps with activity information
-        laps = strava_db_service.get_all_laps_with_activity_info(db, athlete_id, limit)
+        laps = strava_db_service.get_all_laps_with_activity_info(db, athlete.id, limit)
         
         return laps
     except Exception as e:

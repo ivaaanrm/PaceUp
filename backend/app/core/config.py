@@ -14,6 +14,11 @@ class Config(BaseSettings):
     # Database Configuration
     database_url: str = "postgresql://postgres:postgres@localhost:5432/paceup"
     
+    # JWT Authentication Configuration
+    jwt_secret_key: str = "your-secret-key-change-in-production"  # Change this in production!
+    jwt_algorithm: str = "HS256"
+    jwt_access_token_expire_minutes: int = 60 * 24 * 7  # 7 days
+    
     # Strava API Configuration
     strava_client_id: str = ""
     strava_client_secret: str = ""

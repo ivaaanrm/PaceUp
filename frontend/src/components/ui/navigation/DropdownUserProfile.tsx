@@ -14,9 +14,10 @@ import {
   DropdownMenuSubMenuTrigger,
   DropdownMenuTrigger,
 } from "@/components/DropdownMenu"
-import { ArrowUpRight, Monitor, Moon, Sun } from "lucide-react"
+import { Monitor, Moon, Sun, LogIn, LogOut } from "lucide-react"
 import { useTheme } from "next-themes"
 import * as React from "react"
+import { useAuth } from "@/contexts/AuthContext"
 
 export type DropdownUserProfileProps = {
   children: React.ReactNode
@@ -28,14 +29,43 @@ export function DropdownUserProfile({
   align = "start",
 }: DropdownUserProfileProps) {
   const [mounted, setMounted] = React.useState(false)
+  const [showLoginDialog, setShowLoginDialog] = React.useState(false)
   const { theme, setTheme } = useTheme()
+  const { user, isAuthenticated, logout, login } = useAuth()
+  const [email, setEmail] = React.useState("")
+  const [password, setPassword] = React.useState("")
+  const [error, setError] = React.useState("")
+  const [loading, setLoading] = React.useState(false)
+
   React.useEffect(() => {
     setMounted(true)
   }, [])
 
+  const handleSubmit = async (e: React.FormEvent) => {
+    e.preventDefault()
+    setError("")
+    setLoading(true)
+
+    try {
+      await login(email, password)
+      setShowLoginDialog(false)
+      setEmail("")
+      setPassword("")
+    } catch (err) {
+      setError(err instanceof Error ? err.message : "Login failed")
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleLogout = () => {
+    logout()
+  }
+
   if (!mounted) {
     return null
   }
+
   return (
     <>
       <DropdownMenu>
@@ -44,7 +74,9 @@ export function DropdownUserProfile({
           align={align}
           className="sm:!min-w-[calc(var(--radix-dropdown-menu-trigger-width))]"
         >
-          <DropdownMenuLabel>emma.stone@acme.com</DropdownMenuLabel>
+          <DropdownMenuLabel>
+            {isAuthenticated && user ? user.email : "Guest User"}
+          </DropdownMenuLabel>
           <DropdownMenuGroup>
             <DropdownMenuSubMenu>
               <DropdownMenuSubMenuTrigger>Theme</DropdownMenuSubMenuTrigger>
@@ -85,38 +117,71 @@ export function DropdownUserProfile({
           </DropdownMenuGroup>
           <DropdownMenuSeparator />
           <DropdownMenuGroup>
-            <DropdownMenuItem>
-              Changelog
-              <ArrowUpRight
-                className="mb-1 ml-1 size-3 shrink-0 text-gray-500 dark:text-gray-500"
-                aria-hidden="true"
-              />
-            </DropdownMenuItem>
-            <DropdownMenuItem>
-              Documentation
-              <ArrowUpRight
-                className="mb-1 ml-1 size-3 shrink-0 text-gray-500"
-                aria-hidden="true"
-              />
-            </DropdownMenuItem>
-            <DropdownMenuItem>
-              Join Slack community
-              <ArrowUpRight
-                className="mb-1 ml-1 size-3 shrink-0 text-gray-500"
-                aria-hidden="true"
-              />
-            </DropdownMenuItem>
-          </DropdownMenuGroup>
-          <DropdownMenuSeparator />
-          <DropdownMenuGroup>
-            <DropdownMenuItem>
-              <a href="#" className="w-full">
+            {isAuthenticated ? (
+              <DropdownMenuItem onClick={handleLogout}>
+                <LogOut className="size-4 shrink-0 mr-2" aria-hidden="true" />
                 Sign out
-              </a>
-            </DropdownMenuItem>
+              </DropdownMenuItem>
+            ) : (
+              <DropdownMenuItem onClick={() => setShowLoginDialog(true)}>
+                <LogIn className="size-4 shrink-0 mr-2" aria-hidden="true" />
+                Sign in
+              </DropdownMenuItem>
+            )}
           </DropdownMenuGroup>
         </DropdownMenuContent>
       </DropdownMenu>
+
+      {/* Login Dialog */}
+      {showLoginDialog && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 p-4" onClick={() => setShowLoginDialog(false)}>
+          <div className="bg-white dark:bg-gray-900 rounded-lg p-6 w-full max-w-md mx-auto" onClick={(e) => e.stopPropagation()}>
+            <h2 className="text-2xl font-bold mb-4 text-gray-900 dark:text-gray-50">
+              Sign In
+            </h2>
+            
+            <form onSubmit={handleSubmit} className="space-y-4">
+              <div>
+                <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">
+                  Email
+                </label>
+                <input
+                  type="email"
+                  value={email}
+                  onChange={(e) => setEmail(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+                  required
+                />
+              </div>
+              
+              <div>
+                <label className="block text-sm font-medium mb-1 text-gray-700 dark:text-gray-300">
+                  Password
+                </label>
+                <input
+                  type="password"
+                  value={password}
+                  onChange={(e) => setPassword(e.target.value)}
+                  className="w-full px-3 py-2 border border-gray-300 rounded-md dark:border-gray-700 dark:bg-gray-800 dark:text-gray-100"
+                  required
+                />
+              </div>
+
+              {error && (
+                <div className="text-red-600 text-sm">{error}</div>
+              )}
+
+              <button
+                type="submit"
+                disabled={loading}
+                className="w-full bg-orange-500 hover:bg-orange-600 text-white font-medium py-2 px-4 rounded-md disabled:opacity-50"
+              >
+                {loading ? "Signing in..." : "Sign In"}
+              </button>
+            </form>
+          </div>
+        </div>
+      )}
     </>
   )
 }

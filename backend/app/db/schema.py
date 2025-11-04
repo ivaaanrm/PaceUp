@@ -15,6 +15,20 @@ class Base(DeclarativeBase):
     pass
 
 
+class User(Base):
+    """Stores user authentication information"""
+    __tablename__ = "users"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    email: Mapped[str] = mapped_column(String(255), unique=True, index=True, nullable=False)
+    hashed_password: Mapped[str] = mapped_column(String(255), nullable=False)
+    firstname: Mapped[Optional[str]] = mapped_column(String(100))
+    lastname: Mapped[Optional[str]] = mapped_column(String(100))
+    is_active: Mapped[bool] = mapped_column(default=True)
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+
+
 class Athlete(Base):
     """Stores Strava athlete information"""
     __tablename__ = "athletes"
@@ -29,6 +43,8 @@ class Athlete(Base):
     sex: Mapped[Optional[str]] = mapped_column(String(1))
     weight: Mapped[Optional[float]] = mapped_column(Float)
     profile: Mapped[Optional[str]] = mapped_column(Text)  # Profile picture URL
+    stats: Mapped[Optional[dict]] = mapped_column(JSON)  # Athlete stats from Strava API
+    stats_updated_at: Mapped[Optional[datetime]] = mapped_column(DateTime)  # When stats were last updated
     created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
     updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
     
