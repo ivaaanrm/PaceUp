@@ -223,6 +223,44 @@ class StravaDBService:
         return db.query(Lap).filter(
             Lap.activity_id == activity_id
         ).order_by(Lap.lap_index).all()
+    
+    @staticmethod
+    def get_all_laps_with_activity_info(db: Session, athlete_id: int, limit: int = 1000):
+        """Get all laps with their activity information"""
+        from sqlalchemy import desc
+        
+        results = db.query(
+            Lap.id,
+            Lap.activity_id,
+            Lap.lap_index,
+            Lap.distance,
+            Lap.moving_time,
+            Lap.average_speed,
+            Lap.average_heartrate,
+            Activity.start_date,
+            Activity.name.label('activity_name')
+        ).join(
+            Activity, Lap.activity_id == Activity.id
+        ).filter(
+            Activity.athlete_id == athlete_id
+        ).order_by(
+            desc(Activity.start_date), Lap.lap_index
+        ).limit(limit).all()
+        
+        return [
+            {
+                'id': lap.id,
+                'activity_id': lap.activity_id,
+                'activity_name': lap.activity_name,
+                'lap_index': lap.lap_index,
+                'distance': lap.distance,
+                'moving_time': lap.moving_time,
+                'average_speed': lap.average_speed,
+                'average_heartrate': lap.average_heartrate,
+                'start_date': lap.start_date.isoformat()
+            }
+            for lap in results
+        ]
 
 
 strava_db_service = StravaDBService()

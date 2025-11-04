@@ -294,3 +294,26 @@ async def get_activity_laps(
         logger.error(f"Error getting laps: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to get laps: {str(e)}")
 
+
+@router.get("/laps/all")
+async def get_all_laps(
+    db: Session = Depends(get_db),
+    limit: int = Query(1000, description="Maximum number of laps to return")
+):
+    """
+    Get all laps from all activities with activity date information.
+    Returns laps sorted by activity date.
+    """
+    try:
+        # Get athlete first
+        athlete_data = strava_service.get_athlete()
+        athlete_id = athlete_data.get('id')
+        
+        # Get all laps with activity information
+        laps = strava_db_service.get_all_laps_with_activity_info(db, athlete_id, limit)
+        
+        return laps
+    except Exception as e:
+        logger.error(f"Error getting all laps: {str(e)}")
+        raise HTTPException(status_code=500, detail=f"Failed to get all laps: {str(e)}")
+

@@ -1,9 +1,10 @@
 "use client"
 
 import { useEffect, useState } from "react"
-import { stravaAPI, type Athlete, type AthleteStats } from "@/lib/api"
+import { stravaAPI, type Athlete, type AthleteStats, type LapWithActivity } from "@/lib/api"
 import { Button } from "@/components/Button"
 import { RiRefreshLine, RiRunLine } from "@remixicon/react"
+import { LapPaceChart } from "@/components/LapPaceChart"
 
 function StatCard({ label, value, subtext }: { label: string; value: string; subtext?: string }) {
   return (
@@ -26,6 +27,7 @@ function StatCard({ label, value, subtext }: { label: string; value: string; sub
 export default function DashboardPage() {
   const [athlete, setAthlete] = useState<Athlete | null>(null)
   const [stats, setStats] = useState<AthleteStats | null>(null)
+  const [laps, setLaps] = useState<LapWithActivity[]>([])
   const [loading, setLoading] = useState(true)
   const [syncing, setSyncing] = useState(false)
   const [error, setError] = useState<string | null>(null)
@@ -38,12 +40,14 @@ export default function DashboardPage() {
     try {
       setLoading(true)
       setError(null)
-      const [athleteData, statsData] = await Promise.all([
+      const [athleteData, statsData, lapsData] = await Promise.all([
         stravaAPI.getAthlete(),
         stravaAPI.getAthleteStats(),
+        stravaAPI.getAllLaps(500).catch(() => []),
       ])
       setAthlete(athleteData)
       setStats(statsData)
+      setLaps(lapsData)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load data')
       console.error('Error loading data:', err)
@@ -119,6 +123,13 @@ export default function DashboardPage() {
           {syncing ? 'Syncing...' : 'Sync Activities'}
         </Button>
       </div>
+
+      {/* Lap Pace Chart */}
+      {laps.length > 0 && (
+        <div className="mb-8">
+          <LapPaceChart laps={laps} />
+        </div>
+      )}
 
       {/* Recent Totals (Last 4 Weeks) */}
       {stats?.recent_run_totals && (
