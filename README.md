@@ -88,22 +88,27 @@ curl -X POST https://www.strava.com/api/v3/oauth/token \
 
 ```
 PaceUp/
-├── app/                        # Backend (FastAPI)
-│   ├── api/
-│   │   └── v1/
-│   │       ├── strava.py      # Strava API endpoints
-│   │       └── user.py
-│   ├── core/
-│   │   ├── config.py          # Configuration
-│   │   └── logging.py
-│   ├── db/
-│   │   └── schema.py          # Database models
-│   ├── models/
-│   │   └── strava.py          # Pydantic models
-│   ├── services/
-│   │   ├── strava_service.py  # Strava API client
-│   │   └── strava_db_service.py
-│   └── main.py
+├── backend/                    # Backend (FastAPI)
+│   ├── app/
+│   │   ├── api/
+│   │   │   └── v1/
+│   │   │       ├── strava.py  # Strava API endpoints
+│   │   │       └── user.py
+│   │   ├── core/
+│   │   │   ├── config.py      # Configuration
+│   │   │   └── logging.py
+│   │   ├── db/
+│   │   │   └── schema.py      # Database models
+│   │   ├── models/
+│   │   │   └── strava.py      # Pydantic models
+│   │   ├── services/
+│   │   │   ├── strava_service.py  # Strava API client
+│   │   │   └── strava_db_service.py
+│   │   └── main.py
+│   ├── tests/
+│   ├── Dockerfile
+│   ├── pyproject.toml
+│   └── uv.lock
 ├── frontend/                   # Frontend (Next.js)
 │   ├── src/
 │   │   ├── app/              # Pages
@@ -112,10 +117,10 @@ PaceUp/
 │   │   ├── components/       # UI components
 │   │   └── lib/
 │   │       └── api.ts        # API client
-│   └── Dockerfile
+│   ├── Dockerfile
+│   └── README.md
+├── .env
 ├── docker-compose.yaml
-├── Dockerfile                  # Backend Dockerfile
-├── pyproject.toml
 └── README.md
 ```
 
@@ -125,12 +130,15 @@ PaceUp/
 
 ```bash
 # Install dependencies
+cd backend
 uv sync
 
-# Start PostgreSQL
+# Start PostgreSQL (from project root)
+cd ..
 docker-compose up -d db
 
 # Run the backend
+cd backend
 uv run uvicorn app.main:app --reload
 ```
 
