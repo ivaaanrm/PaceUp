@@ -117,3 +117,30 @@ class Lap(Base):
     
     # Relationships
     activity: Mapped["Activity"] = relationship(back_populates="laps")
+
+
+class TrainingAnalysis(Base):
+    """Stores AI-generated training analysis and insights"""
+    __tablename__ = "training_analyses"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    athlete_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("athletes.id"))
+    
+    # Analysis content
+    summary: Mapped[str] = mapped_column(Text)  # Short summary of training load
+    training_load_insight: Mapped[str] = mapped_column(Text)  # Analysis of current training load
+    tips: Mapped[str] = mapped_column(Text)  # Tips for next runs
+    
+    # Metadata about the analysis
+    activities_analyzed_count: Mapped[int] = mapped_column(Integer)  # Number of activities analyzed
+    analysis_period_start: Mapped[datetime] = mapped_column(DateTime)  # Start date of analyzed period
+    analysis_period_end: Mapped[datetime] = mapped_column(DateTime)  # End date of analyzed period
+    
+    # Raw AI response for reference
+    raw_response: Mapped[Optional[dict]] = mapped_column(JSON)
+    
+    # Timestamps
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    athlete: Mapped["Athlete"] = relationship()
