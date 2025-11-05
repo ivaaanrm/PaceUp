@@ -44,13 +44,25 @@ export default function ActivityDetailPage() {
   }, [activityId, loadActivityData])
 
   const handleSyncLaps = async () => {
+    // Check if user is authenticated
+    if (!isAuthenticated) {
+      setError('Please log in to sync laps. Click your profile icon to sign in.')
+      return
+    }
+
     try {
       setSyncing(true)
       setError(null)
       await stravaAPI.syncActivityLaps(activityId)
       await loadActivityData()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to sync laps')
+      const errorMessage = err instanceof Error ? err.message : 'Failed to sync laps'
+      // Check if it's an authentication error
+      if (errorMessage.includes('401') || errorMessage.includes('Unauthorized') || errorMessage.includes('token')) {
+        setError('Please log in to sync laps. Click your profile icon to sign in.')
+      } else {
+        setError(errorMessage)
+      }
       console.error('Error syncing laps:', err)
     } finally {
       setSyncing(false)

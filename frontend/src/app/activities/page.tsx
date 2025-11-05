@@ -43,13 +43,25 @@ export default function ActivitiesPage() {
   }
 
   const handleSync = async () => {
+    // Check if user is authenticated
+    if (!isAuthenticated) {
+      setError('Please log in to sync activities. Click your profile icon to sign in.')
+      return
+    }
+
     try {
       setSyncing(true)
       setError(null)
       await stravaAPI.syncActivities()
       await loadActivities()
     } catch (err) {
-      setError(err instanceof Error ? err.message : 'Failed to sync activities')
+      const errorMessage = err instanceof Error ? err.message : 'Failed to sync activities'
+      // Check if it's an authentication error
+      if (errorMessage.includes('401') || errorMessage.includes('Unauthorized') || errorMessage.includes('token')) {
+        setError('Please log in to sync activities. Click your profile icon to sign in.')
+      } else {
+        setError(errorMessage)
+      }
       console.error('Error syncing:', err)
     } finally {
       setSyncing(false)

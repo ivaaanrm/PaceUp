@@ -28,10 +28,21 @@ async def get_current_user(
     db: Session = Depends(get_db)
 ) -> User:
     """Get the current authenticated user from token"""
-    token = credentials.credentials
+    try:
+        token = credentials.credentials
+        logger.info(f"Received token for authentication (length: {len(token) if token else 0})")
+    except Exception as e:
+        logger.error(f"Error extracting credentials: {e}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing or invalid Authorization header",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
     payload = decode_access_token(token)
     
     if payload is None:
+        logger.warning("Token decode failed - invalid or expired token")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired token",
@@ -40,14 +51,17 @@ async def get_current_user(
     
     user_id: int = payload.get("sub")
     if user_id is None:
+        logger.warning(f"Token payload missing 'sub' field: {payload}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid token payload",
             headers={"WWW-Authenticate": "Bearer"},
         )
     
+    logger.info(f"Looking up user with ID: {user_id}")
     user = db.query(User).filter(User.id == user_id).first()
     if user is None:
+        logger.error(f"User not found in database for ID: {user_id}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="User not found",
@@ -55,11 +69,13 @@ async def get_current_user(
         )
     
     if not user.is_active:
+        logger.warning(f"Inactive user attempted access: {user.email}")
         raise HTTPException(
             status_code=status.HTTP_403_FORBIDDEN,
             detail="Inactive user"
         )
     
+    logger.info(f"User authenticated successfully: {user.email} (ID: {user.id})")
     return user
 
 
