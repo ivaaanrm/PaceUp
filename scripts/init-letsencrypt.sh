@@ -6,11 +6,12 @@ email=""
 staging=0
 data_path="./data/certbot"
 
-# Check if docker-compose.yaml uses initial nginx config
-if ! grep -q "nginx.initial.conf" docker-compose.yaml; then
-  echo "Warning: docker-compose.yaml should use nginx.initial.conf for initial setup"
-  echo "Updating docker-compose.yaml to use nginx.initial.conf..."
-  sed -i.bak 's|nginx.conf|nginx.initial.conf|g' docker-compose.yaml
+# Check if nginx.conf contains initial config (HTTP only)
+if ! grep -q "Initial nginx configuration" ./nginx/nginx.conf; then
+  echo "Warning: nginx.conf should contain initial (HTTP-only) configuration for SSL setup"
+  echo "Please ensure nginx.conf is the initial config before running this script"
+  echo "If needed: cp nginx/nginx.initial.conf nginx/nginx.conf"
+  exit 1
 fi
 
 if [ -d "$data_path" ]; then
@@ -48,15 +49,18 @@ docker compose run --rm --entrypoint "\
     --force-renewal" certbot
 echo
 
-echo "### Switching to production nginx configuration ..."
-# Update docker-compose.yaml to use production nginx config
-if grep -q "nginx.initial.conf" docker-compose.yaml; then
-  sed -i.bak 's|nginx.initial.conf|nginx.conf|g' docker-compose.yaml
-  echo "✓ Updated docker-compose.yaml to use production nginx config"
-fi
-
-echo "### Reloading nginx ..."
-docker compose restart nginx
-
-echo "### PaceUp API is now running with HTTPS! ###"
-echo "Your API is available at: https://api.paceup.site"
+echo ""
+echo "=========================================="
+echo "SSL Certificates Obtained Successfully!"
+echo "=========================================="
+echo ""
+echo "Next steps:"
+echo "1. Replace nginx.conf with production configuration:"
+echo "   cp nginx/nginx.production.conf nginx/nginx.conf"
+echo ""
+echo "2. Restart nginx to apply HTTPS configuration:"
+echo "   docker-compose restart nginx"
+echo ""
+echo "After completing these steps, your API will be available at:"
+echo "  https://api.paceup.site"
+echo ""
