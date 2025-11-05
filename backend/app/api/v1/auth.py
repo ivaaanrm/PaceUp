@@ -5,8 +5,8 @@ from sqlalchemy.orm import Session
 import logging
 
 from app.db.schema import SessionLocal, User
-from app.core.security import verify_password, get_password_hash, create_access_token, decode_access_token
-from app.models.auth import UserLogin, UserRegister, Token, UserResponse, AuthResponse
+from app.core.security import verify_password, create_access_token, decode_access_token
+from app.models.auth import UserLogin, UserRegister, UserResponse, AuthResponse
 
 logger = logging.getLogger(__name__)
 
@@ -49,9 +49,20 @@ async def get_current_user(
             headers={"WWW-Authenticate": "Bearer"},
         )
     
-    user_id: int = payload.get("sub")
-    if user_id is None:
+    user_id_str = payload.get("sub")
+    if user_id_str is None:
         logger.warning(f"Token payload missing 'sub' field: {payload}")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Invalid token payload",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
+    
+    # Convert string sub back to integer for database lookup
+    try:
+        user_id: int = int(user_id_str)
+    except (ValueError, TypeError):
+        logger.error(f"Invalid user ID in token 'sub' field: {user_id_str}")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid token payload",
@@ -109,8 +120,8 @@ async def login(credentials: UserLogin, db: Session = Depends(get_db)):
             detail="Inactive user"
         )
     
-    # Create access token
-    access_token = create_access_token(data={"sub": user.id})
+    # Create access token (sub must be a string for JWT spec compliance)
+    access_token = create_access_token(data={"sub": str(user.id)})
     
     logger.info(f"User logged in: {user.email}")
     
