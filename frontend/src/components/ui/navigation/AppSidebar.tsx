@@ -1,5 +1,4 @@
 "use client"
-import { Divider } from "@/components/Divider"
 import {
   Sidebar,
   SidebarContent,
@@ -11,11 +10,11 @@ import {
   SidebarMenu,
   SidebarMenuItem,
 } from "@/components/Sidebar"
-import { RiDashboardLine, RiRunLine, RiRefreshLine, RiSparklingFill, RiCalculatorLine } from "@remixicon/react"
+import { RiDashboardLine, RiRunLine, RiSparklingFill, RiCalculatorLine, RiBookOpenLine, RiFileTextLine, RiGithubLine } from "@remixicon/react"
 import * as React from "react"
-import { Logo } from "../../../../public/Logo"
 import { UserProfile } from "./UserProfile"
 import { usePathname } from "next/navigation"
+import { siteConfig } from "@/app/siteConfig"
 
 const navigation = [
   {
@@ -42,6 +41,16 @@ const navigation = [
 
 export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
   const pathname = usePathname()
+  
+  // Get API base URL for docs links
+  const getApiBaseUrl = () => {
+    if (typeof window === 'undefined') {
+      return process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+    }
+    return process.env.NEXT_PUBLIC_BROWSER_API_URL || process.env.NEXT_PUBLIC_API_URL || 'http://localhost:8000'
+  }
+  
+  const apiBaseUrl = getApiBaseUrl()
   
   return (
     <Sidebar {...props} className="bg-gray-50 dark:bg-gray-925">
@@ -75,6 +84,42 @@ export function AppSidebar({ ...props }: React.ComponentProps<typeof Sidebar>) {
                   </SidebarLink>
                 </SidebarMenuItem>
               ))}
+            </SidebarMenu>
+          </SidebarGroupContent>
+        </SidebarGroup>
+        <SidebarGroup>
+          <SidebarGroupContent>
+            <SidebarMenu className="space-y-1">
+              <SidebarMenuItem>
+                <SidebarLink
+                  href={`${apiBaseUrl}/docs`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  icon={RiBookOpenLine}
+                >
+                  API Docs
+                </SidebarLink>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarLink
+                  href={`${apiBaseUrl}/redoc`}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  icon={RiFileTextLine}
+                >
+                  API ReDoc
+                </SidebarLink>
+              </SidebarMenuItem>
+              <SidebarMenuItem>
+                <SidebarLink
+                  href={siteConfig.githubUrl}
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  icon={RiGithubLine}
+                >
+                  GitHub
+                </SidebarLink>
+              </SidebarMenuItem>
             </SidebarMenu>
           </SidebarGroupContent>
         </SidebarGroup>
