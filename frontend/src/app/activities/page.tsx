@@ -1,9 +1,11 @@
 "use client"
 
-import { useEffect, useState } from "react"
+import { useEffect, useState, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { stravaAPI, type Activity, formatDistance, formatDuration, formatPace, formatDate } from "@/lib/api"
 import { Button } from "@/components/Button"
+import { BarChart } from "@/components/BarChart"
+import { ActivityChartTooltip } from "@/components/CustomTooltips"
 import { RiRefreshLine, RiRunLine, RiArrowRightLine } from "@remixicon/react"
 import { useAuth } from "@/contexts/AuthContext"
 
@@ -41,6 +43,27 @@ export default function ActivitiesPage() {
       setLoading(false)
     }
   }
+
+  // Transform activities data for chart
+  const chartData = useMemo(() => {
+    return activities
+      .sort((a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime())
+      .map((activity) => {
+        const date = new Date(activity.start_date)
+        const dateStr = date.toLocaleDateString('en-US', { 
+          month: 'short', 
+          day: 'numeric' 
+        })
+        
+        return {
+          date: dateStr,
+          "Distance (km)": activity.distance / 1000,
+          distance: activity.distance,
+          average_speed: activity.average_speed,
+          average_heartrate: activity.average_heartrate,
+        }
+      })
+  }, [activities])
 
   const handleSync = async () => {
     // Check if user is authenticated
@@ -113,6 +136,28 @@ export default function ActivitiesPage() {
           {syncing ? 'Syncing...' : 'Sync Activities'}
         </Button>
       </div>
+
+      {/* Distance Chart */}
+      {activities.length > 0 && (
+        <div className="mb-8 rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
+          <h2 className="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-50">
+            Distance Over Time
+          </h2>
+          <BarChart
+            data={chartData}
+            index="date"
+            categories={["Distance (km)"]}
+            colors={["orange"]}
+            valueFormatter={(value) => `${value.toFixed(2)} km`}
+            showLegend={false}
+            showGridLines={true}
+            yAxisLabel="Distance (km)"
+            customTooltip={ActivityChartTooltip}
+            className="h-64"
+            barCategoryGap="20%"
+          />
+        </div>
+      )}
 
       {/* Activities List */}
       {activities.length > 0 ? (

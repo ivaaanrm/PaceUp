@@ -29,8 +29,22 @@ async def get_current_user(
 ) -> User:
     """Get the current authenticated user from token"""
     try:
-        token = credentials.credentials
-        logger.info(f"Received token for authentication (length: {len(token) if token else 0})")
+        token = credentials.credentials.strip() if credentials.credentials else None
+        if not token:
+            logger.error("Empty token received")
+            raise HTTPException(
+                status_code=status.HTTP_401_UNAUTHORIZED,
+                detail="Missing or invalid Authorization header",
+                headers={"WWW-Authenticate": "Bearer"},
+            )
+        logger.info(f"Received token for authentication (length: {len(token)})")
+    except AttributeError:
+        logger.error("Error extracting credentials - credentials object missing")
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="Missing or invalid Authorization header",
+            headers={"WWW-Authenticate": "Bearer"},
+        )
     except Exception as e:
         logger.error(f"Error extracting credentials: {e}")
         raise HTTPException(
@@ -42,7 +56,7 @@ async def get_current_user(
     payload = decode_access_token(token)
     
     if payload is None:
-        logger.warning("Token decode failed - invalid or expired token")
+        logger.warning(f"Token decode failed - invalid or expired token (token length: {len(token)}, first 20 chars: {token[:20]}...)")
         raise HTTPException(
             status_code=status.HTTP_401_UNAUTHORIZED,
             detail="Invalid or expired token",

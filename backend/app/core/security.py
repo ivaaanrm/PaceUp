@@ -3,8 +3,11 @@ from datetime import datetime, timedelta
 from typing import Optional
 from jose import JWTError, jwt
 import bcrypt
+import logging
 
 from app.core.config import config
+
+logger = logging.getLogger(__name__)
 
 
 def verify_password(plain_password: str, hashed_password: str) -> bool:
@@ -41,8 +44,12 @@ def create_access_token(data: dict, expires_delta: Optional[timedelta] = None) -
 def decode_access_token(token: str) -> Optional[dict]:
     """Decode and verify a JWT token"""
     try:
+        # Trim whitespace from token
+        token = token.strip()
         payload = jwt.decode(token, config.jwt_secret_key, algorithms=[config.jwt_algorithm])
         return payload
-    except JWTError:
+    except JWTError as e:
+        # Log the specific JWT error for debugging
+        logger.warning(f"JWT decode error: {type(e).__name__}: {str(e)}")
         return None
 

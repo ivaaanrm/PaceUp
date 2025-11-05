@@ -3,7 +3,8 @@
 import { useEffect, useState, useMemo } from "react"
 import { stravaAPI, type Athlete, type Activity, type LapWithActivity } from "@/lib/api"
 import { Button } from "@/components/Button"
-import { RiRefreshLine, RiRunLine, RiCalendarLine, RiArrowUpLine, RiArrowDownLine } from "@remixicon/react"
+import { Input } from "@/components/Input"
+import { RiRefreshLine, RiRunLine, RiCalendarLine, RiArrowUpLine, RiArrowDownLine, RiEditLine, RiCheckLine, RiCloseLine } from "@remixicon/react"
 import { LapPaceChart } from "@/components/LapPaceChart"
 import { LapHeartRateChart } from "@/components/LapHeartRateChart"
 import { BarChart } from "@/components/BarChart"
@@ -16,8 +17,18 @@ const RACE_DATE = new Date('2026-01-18')
 const RACE_NAME = "La Mitja Half Marathon"
 const TRAINING_START_DATE = new Date('2025-09-01')
 
+const OBJECTIVE_TIME_KEY = 'race_objective_time'
+
 function RaceCountdown() {
   const [countdown, setCountdown] = useState({ days: 0, weeks: 0 })
+  const [objectiveTime, setObjectiveTime] = useState<string>(() => {
+    if (typeof window !== 'undefined') {
+      return localStorage.getItem(OBJECTIVE_TIME_KEY) || ''
+    }
+    return ''
+  })
+  const [isEditingTime, setIsEditingTime] = useState(false)
+  const [editTimeValue, setEditTimeValue] = useState('')
 
   useEffect(() => {
     const calculateCountdown = () => {
@@ -34,41 +45,127 @@ function RaceCountdown() {
     return () => clearInterval(interval)
   }, [])
 
+  const handleStartEdit = () => {
+    setEditTimeValue(objectiveTime)
+    setIsEditingTime(true)
+  }
+
+  const handleSaveTime = () => {
+    setObjectiveTime(editTimeValue)
+    if (typeof window !== 'undefined') {
+      localStorage.setItem(OBJECTIVE_TIME_KEY, editTimeValue)
+    }
+    setIsEditingTime(false)
+  }
+
+  const handleCancelEdit = () => {
+    setEditTimeValue('')
+    setIsEditingTime(false)
+  }
+
+  // Format time input (HH:MM:SS or MM:SS)
+  const formatTimeDisplay = (timeStr: string) => {
+    if (!timeStr) return null
+    const parts = timeStr.split(':')
+    if (parts.length === 2) {
+      return timeStr // MM:SS
+    } else if (parts.length === 3) {
+      const [hours, minutes, seconds] = parts
+      return `${hours}:${minutes}:${seconds}`
+    }
+    return timeStr
+  }
+
   return (
-    <div className="rounded-lg border-2 border-orange-500 bg-gradient-to-br from-orange-50 to-orange-100 p-6 dark:from-orange-950/30 dark:to-orange-900/20 dark:border-orange-600">
-      <div className="flex items-start gap-4">
-        <div className="flex-shrink-0 rounded-full bg-orange-500 p-3">
-          <RiCalendarLine className="h-6 w-6 text-white" />
+    <div className="rounded-lg border border-orange-300 bg-gradient-to-br from-orange-50 to-orange-100 p-4 dark:from-orange-950/30 dark:to-orange-900/20 dark:border-orange-600">
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-3 flex-1 min-w-0">
+          <div className="flex-shrink-0 rounded-full bg-orange-500 p-2">
+            <RiCalendarLine className="h-4 w-4 text-white" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-50 truncate">
+              {RACE_NAME}
+            </h2>
+            <p className="text-xs text-gray-600 dark:text-gray-400">
+              {RACE_DATE.toLocaleDateString('en-US', { 
+                month: 'short',
+                day: 'numeric',
+                year: 'numeric'
+              })}
+            </p>
+          </div>
         </div>
-        <div className="flex-1">
-          <h2 className="text-2xl font-bold text-gray-900 dark:text-gray-50">
-            {RACE_NAME}
-          </h2>
-          <p className="mt-1 text-sm text-gray-600 dark:text-gray-400">
-            {RACE_DATE.toLocaleDateString('en-US', { 
-              weekday: 'long',
-              year: 'numeric',
-              month: 'long',
-              day: 'numeric'
-            })}
-          </p>
-          <div className="mt-4 flex gap-6">
-            <div>
-              <p className="text-4xl font-bold text-orange-600 dark:text-orange-400">
-                {countdown.days}
-              </p>
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                days to go
-              </p>
-            </div>
-            <div>
-              <p className="text-4xl font-bold text-orange-600 dark:text-orange-400">
-                {countdown.weeks}
-              </p>
-              <p className="text-sm font-medium text-gray-600 dark:text-gray-400">
-                weeks to go
-              </p>
-            </div>
+        <div className="flex items-center gap-4 flex-wrap">
+          <div className="text-center">
+            <p className="text-xl font-bold text-orange-600 dark:text-orange-400">
+              {countdown.days}
+            </p>
+            <p className="text-xs font-medium text-gray-600 dark:text-gray-400">
+              days
+            </p>
+          </div>
+          <div className="text-center">
+            <p className="text-xl font-bold text-orange-600 dark:text-orange-400">
+              {countdown.weeks}
+            </p>
+            <p className="text-xs font-medium text-gray-600 dark:text-gray-400">
+              weeks
+            </p>
+          </div>
+          <div className="flex items-center gap-2 border-t border-orange-300 dark:border-orange-600 pt-3 sm:border-t-0 sm:border-l sm:pl-4 sm:pt-0">
+            {isEditingTime ? (
+              <div className="flex items-center gap-2 flex-1 sm:flex-initial">
+                <Input
+                  type="text"
+                  value={editTimeValue}
+                  onChange={(e) => setEditTimeValue(e.target.value)}
+                  placeholder="HH:MM:SS or MM:SS"
+                  className="w-full sm:w-32"
+                  inputClassName="text-sm"
+                  onKeyDown={(e) => {
+                    if (e.key === 'Enter') {
+                      handleSaveTime()
+                    } else if (e.key === 'Escape') {
+                      handleCancelEdit()
+                    }
+                  }}
+                  autoFocus
+                />
+                <button
+                  onClick={handleSaveTime}
+                  className="p-1 text-green-600 hover:text-green-700 dark:text-green-400 dark:hover:text-green-300 flex-shrink-0"
+                  title="Save"
+                >
+                  <RiCheckLine className="h-4 w-4" />
+                </button>
+                <button
+                  onClick={handleCancelEdit}
+                  className="p-1 text-red-600 hover:text-red-700 dark:text-red-400 dark:hover:text-red-300 flex-shrink-0"
+                  title="Cancel"
+                >
+                  <RiCloseLine className="h-4 w-4" />
+                </button>
+              </div>
+            ) : (
+              <div className="flex items-center gap-2 flex-1 sm:flex-initial">
+                <div className="text-left sm:text-right flex-1 min-w-0">
+                  <p className="text-xs font-medium text-gray-600 dark:text-gray-400">
+                    Objective Time
+                  </p>
+                  <p className="text-sm font-semibold text-gray-900 dark:text-gray-50 truncate">
+                    {objectiveTime ? formatTimeDisplay(objectiveTime) : 'Not set'}
+                  </p>
+                </div>
+                <button
+                  onClick={handleStartEdit}
+                  className="p-1.5 text-gray-500 hover:text-gray-700 dark:text-gray-400 dark:hover:text-gray-300 rounded hover:bg-gray-100 dark:hover:bg-gray-800 flex-shrink-0"
+                  title="Edit objective time"
+                >
+                  <RiEditLine className="h-4 w-4" />
+                </button>
+              </div>
+            )}
           </div>
         </div>
       </div>

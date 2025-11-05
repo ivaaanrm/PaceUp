@@ -9,6 +9,11 @@ from app.core.config import config
 logger = logging.getLogger(__name__)
 
 
+class StravaRateLimitError(Exception):
+    """Exception raised when Strava API rate limit is exceeded"""
+    pass
+
+
 class StravaService:
     """Handles all interactions with Strava API"""
     
@@ -62,6 +67,9 @@ class StravaService:
             
         Returns:
             JSON response as a dictionary
+            
+        Raises:
+            StravaRateLimitError: If the API rate limit is exceeded (429 status)
         """
         access_token = self._get_access_token()
         
@@ -72,6 +80,14 @@ class StravaService:
         url = f"{self.api_base_url}{endpoint}"
         
         response = requests.request(method, url, headers=headers, params=params)
+        
+        # Check for rate limit error (429 Too Many Requests)
+        if response.status_code == 429:
+            logger.error(f"Strava API rate limit exceeded for endpoint: {endpoint}")
+            raise StravaRateLimitError(
+                "Strava API rate limit exceeded. Please wait 15 minutes before trying again."
+            )
+        
         response.raise_for_status()
         
         return response.json()
