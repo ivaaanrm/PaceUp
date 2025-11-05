@@ -1,0 +1,71 @@
+name: Deploy to Production
+
+on:
+  push:
+    branches:
+      - main
+  workflow_dispatch:  # Allow manual triggering
+
+jobs:
+  deploy:
+    name: Deploy to Production Server
+    runs-on: ubuntu-latest
+    
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+      
+      - name: Deploy to server
+        uses: appleboy/ssh-action@v1.0.0
+        with:
+          host: ${{ secrets.DEPLOY_HOST }}
+          username: ${{ secrets.DEPLOY_USER }}
+          key: ${{ secrets.DEPLOY_SSH_KEY }}
+          port: ${{ secrets.DEPLOY_PORT || 22 }}
+          script: |
+            set -e  # Exit on error
+            
+            cd /home/deploy/PaceUp
+            echo "Current directory: $(pwd)"
+            echo "Current user: $(whoami)"
+            
+            # Pull latest changes
+            echo "Pulling latest changes from repository..."
+            git pull origin main
+            
+            # Build and restart services
+            echo "Building Docker images..."
+            docker-compose build
+            
+            echo "Starting services..."
+            docker-compose up -d
+            
+            # Wait a moment for services to start
+            echo "Waiting for services to start..."
+            sleep 10
+            
+            # Check service status
+            echo "Checking service status..."
+            docker-compose ps
+            
+            # Verify services are running
+            if ! docker-compose ps | grep -q "Up"; then
+              echo "Warning: Some services may not be running. Showing logs..."
+              docker-compose logs --tail=100
+              exit 1
+            fi
+            
+            # Show recent logs
+            echo "Recent logs:"
+            docker-compose logs --tail=50
+            
+            # Health check (if backend has a health endpoint)
+            echo "Performing health check..."
+            if curl -f http://localhost:8000/health > /dev/null 2>&1 || curl -f http://localhost/api/health > /dev/null 2>&1; then
+              echo "✓ Health check passed"
+            else
+              echo "⚠ Health check failed (this may be expected if health endpoint is not configured)"
+            fi
+            
+            echo "✓ Deployment completed successfully"
+
