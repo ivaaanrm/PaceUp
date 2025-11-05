@@ -55,10 +55,8 @@ services:
       - "${NGINX_PORT:-80}:80"
       - "443:443"
     volumes:
-      # Use nginx.initial.conf for initial SSL setup, then switch to nginx.conf
-      - ./nginx/nginx.initial.conf:/etc/nginx/conf.d/default.conf:ro
       # After SSL certificates are obtained, change above to:
-      # - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
+      - ./nginx/nginx.conf:/etc/nginx/conf.d/default.conf:ro
       - certbot_data:/var/www/certbot
       - certbot_etc:/etc/letsencrypt
     depends_on:

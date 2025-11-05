@@ -81,7 +81,7 @@ dist
 
 # Gatsby files
 .cache/
-public
+backend/public
 
 # Storybook build outputs
 .out
@@ -230,7 +230,7 @@ dist/
 downloads/
 eggs/
 .eggs/
-lib/
+backend/lib/
 lib64/
 parts/
 sdist/
