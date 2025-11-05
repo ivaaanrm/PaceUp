@@ -117,7 +117,7 @@ export default function CalculatorPage() {
         </h2>
         <p className="mb-6 text-sm text-gray-600 dark:text-gray-400">
           Use this calculator to predict your race time based on a previous race result. 
-          This calculator uses Riegel's formula and assumes you have trained appropriately for the distance.
+          This calculator uses Riegel&apos;s formula and assumes you have trained appropriately for the distance.
         </p>
 
         <div className="space-y-6">
@@ -208,10 +208,10 @@ export default function CalculatorPage() {
         {/* Info Section */}
         <div className="mt-6 rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-800 dark:bg-gray-900/50">
           <h4 className="mb-2 text-sm font-semibold text-gray-900 dark:text-gray-50">
-            About Riegel's Formula
+            About Riegel&apos;s Formula
           </h4>
           <p className="text-xs text-gray-600 dark:text-gray-400">
-            This calculator uses Riegel's equation: <strong>T2 = T1 × (D2/D1)^1.06</strong>
+            This calculator uses Riegel&apos;s equation: <strong>T2 = T1 × (D2/D1)^1.06</strong>
             <br />
             This formula is most accurate for distances from 1 mile to Half Marathon. 
             For distances above Half Marathon, it tends to be optimistic.
