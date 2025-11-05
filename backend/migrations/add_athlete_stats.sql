@@ -12,3 +12,4 @@ ALTER TABLE athletes ADD COLUMN IF NOT EXISTS stats_updated_at TIMESTAMP;
 COMMENT ON COLUMN athletes.stats IS 'Athlete statistics from Strava API (stored as JSON)';
 COMMENT ON COLUMN athletes.stats_updated_at IS 'Timestamp when athlete stats were last updated from Strava API';
 
+
