@@ -30,6 +30,44 @@ PaceUp is a full-stack application that integrates with the Strava API to retrie
 - Strava API credentials (Client ID, Client Secret, Refresh Token)
 - OpenAI API key (for AI training analysis)
 
+## 📦 Production Deployment
+
+PaceUp is designed for separate deployment of frontend and backend:
+
+- **Backend**: Deploy on a Linux VM with FastAPI, PostgreSQL, and Nginx
+- **Frontend**: Deploy on Vercel
+
+See [DEPLOYMENT.md](docs/DEPLOYMENT.md) for detailed production deployment instructions.
+
+### Quick Production Setup
+
+**Backend (Linux VM):**
+```bash
+# Configure environment variables
+cp env.production.template .env
+# Edit .env with your production settings (API domain: api.paceup.site)
+
+# Deploy
+docker-compose up -d
+
+# Setup SSL certificates (after DNS is configured)
+./scripts/setup-ssl.sh
+
+# Or use the deployment script
+chmod +x scripts/deploy-backend.sh
+./scripts/deploy-backend.sh start
+```
+
+**Frontend (Vercel):**
+1. Connect your repository to Vercel
+2. Set root directory to `frontend`
+3. Add environment variables:
+   - `NEXT_PUBLIC_API_URL`: `https://api.paceup.site` (or `http://api.paceup.site` initially)
+   - `NEXT_PUBLIC_BROWSER_API_URL`: `https://api.paceup.site` (or `http://api.paceup.site` initially)
+4. Deploy
+
+For complete instructions, see [DEPLOYMENT.md](docs/DEPLOYMENT.md).
+
 ### 1. Clone and Setup Environment
 
 ```bash
@@ -144,11 +182,16 @@ PaceUp/
 ### Backend Development (without Docker)
 
 ```bash
+# Configure environment variables
+cp env.development.template .env
+# Edit .env with your development settings
+
 # Install dependencies
 cd backend
 uv sync
 
 # Start PostgreSQL (from project root)
+# Make sure PostgreSQL is running locally, or use Docker:
 cd ..
 docker-compose up -d db
 
@@ -167,10 +210,13 @@ pnpm install
 
 # Create .env.local
 echo "NEXT_PUBLIC_API_URL=http://localhost:8000" > .env.local
+echo "NEXT_PUBLIC_BROWSER_API_URL=http://localhost:8000" >> .env.local
 
 # Run development server
 pnpm dev
 ```
+
+**Note**: For development, use `env.development.template` which is configured for local development without Docker.
 
 ## 📚 API Endpoints
 
