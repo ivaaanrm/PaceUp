@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import String, create_engine, Float, Integer, DateTime, BigInteger, Text, JSON
+from sqlalchemy import String, create_engine, Float, Integer, DateTime, BigInteger, Text, JSON, UniqueConstraint
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker, relationship
 from sqlalchemy import ForeignKey
 
@@ -160,3 +160,77 @@ class TrainingAnalysis(Base):
     
     # Relationships
     athlete: Mapped["Athlete"] = relationship()
+
+
+class TrainingRequest(Base):
+    """Stores user training plan requests"""
+    __tablename__ = "training_requests"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    athlete_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("athletes.id"))
+    
+    # User input data
+    distance_objective: Mapped[str] = mapped_column(String(100))  # e.g., "10km", "Half Marathon"
+    pace_or_time_objective: Mapped[str] = mapped_column(String(100))  # e.g., "4:30 min/km" or "Sub 40 minutes"
+    personal_record: Mapped[Optional[str]] = mapped_column(String(100))  # e.g., "39:42 in 10km"
+    weekly_kms: Mapped[Optional[float]] = mapped_column(Float)  # Average weekly kilometers
+    plan_duration_weeks: Mapped[int] = mapped_column(Integer)  # Plan duration in weeks
+    training_days: Mapped[list[str]] = mapped_column(JSON)  # List of training days, e.g., ["Monday", "Wednesday", "Friday", "Sunday"]
+    get_previous_activities_context: Mapped[bool] = mapped_column(default=False)  # Whether to include historical context
+    
+    # Timestamps
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    athlete: Mapped["Athlete"] = relationship()
+    training_plan: Mapped[Optional["TrainingPlan"]] = relationship(back_populates="request", uselist=False)
+
+
+class TrainingPlan(Base):
+    """Stores AI-generated training plans"""
+    __tablename__ = "training_plans"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    request_id: Mapped[int] = mapped_column(Integer, ForeignKey("training_requests.id"), unique=True)
+    athlete_id: Mapped[int] = mapped_column(BigInteger, ForeignKey("athletes.id"))
+    
+    # AI-generated content
+    insights: Mapped[str] = mapped_column(Text)  # Insights on the objective
+    summary: Mapped[str] = mapped_column(Text)  # Summary of the plan objective
+    training_plan_json: Mapped[dict] = mapped_column(JSON)  # The structured training plan in JSON format
+    
+    # Raw AI response for reference
+    raw_response: Mapped[Optional[dict]] = mapped_column(JSON)
+    
+    # Timestamps
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    
+    # Relationships
+    request: Mapped["TrainingRequest"] = relationship(back_populates="training_plan")
+    athlete: Mapped["Athlete"] = relationship()
+    completed_activities: Mapped[list["TrainingPlanActivity"]] = relationship(back_populates="plan", cascade="all, delete-orphan")
+
+
+class TrainingPlanActivity(Base):
+    """Stores completion status for individual activities in a training plan"""
+    __tablename__ = "training_plan_activities"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    plan_id: Mapped[int] = mapped_column(Integer, ForeignKey("training_plans.id", ondelete="CASCADE"))
+    week_number: Mapped[int] = mapped_column(Integer)  # Week number (1-based)
+    day: Mapped[str] = mapped_column(String(20))  # Day of the week
+    activity_index: Mapped[int] = mapped_column(Integer)  # Index of the activity in the week's days array
+    is_completed: Mapped[bool] = mapped_column(default=False)
+    completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime)
+    
+    # Timestamps
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    plan: Mapped["TrainingPlan"] = relationship(back_populates="completed_activities")
+    
+    # Unique constraint: one completion record per activity
+    __table_args__ = (
+        UniqueConstraint('plan_id', 'week_number', 'day', 'activity_index', name='uq_plan_activity'),
+    )

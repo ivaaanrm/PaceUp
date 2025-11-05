@@ -10,7 +10,7 @@ import {
   SidebarMenu,
   SidebarMenuItem,
 } from "@/components/Sidebar"
-import { RiDashboardLine, RiRunLine, RiSparklingFill, RiCalculatorLine, RiBookOpenLine, RiFileTextLine, RiGithubLine } from "@remixicon/react"
+import { RiDashboardLine, RiRunLine, RiSparklingFill, RiCalculatorLine, RiBookOpenLine, RiFileTextLine, RiGithubLine, RiCalendarLine } from "@remixicon/react"
 import * as React from "react"
 import { UserProfile } from "./UserProfile"
 import { usePathname } from "next/navigation"
@@ -31,6 +31,11 @@ const navigation = [
     name: "AI Insights",
     href: "/insights",
     icon: RiSparklingFill,
+  },
+  {
+    name: "Training Plan",
+    href: "/training",
+    icon: RiCalendarLine,
   },
   {
     name: "Calculator",

@@ -248,6 +248,137 @@ export const analysisAPI = {
   },
 }
 
+export interface TrainingDay {
+  day: string
+  activity_type: string
+  details: string
+}
+
+export interface TrainingWeek {
+  week: number
+  days: TrainingDay[]
+}
+
+export interface TrainingPlanData {
+  training_plan: TrainingWeek[]
+}
+
+export interface TrainingPlan {
+  id: number
+  request_id: number
+  athlete_id: number
+  insights: string
+  summary: string
+  training_plan_json: TrainingPlanData
+  created_at: string
+}
+
+export interface TrainingRequest {
+  id: number
+  athlete_id: number
+  distance_objective: string
+  pace_or_time_objective: string
+  personal_record: string | null
+  weekly_kms: number | null
+  plan_duration_weeks: number
+  training_days: string[]
+  get_previous_activities_context: boolean
+  created_at: string
+}
+
+export interface TrainingPlanGeneratedResponse {
+  message: string
+  request: TrainingRequest
+  plan: TrainingPlan
+}
+
+export interface TrainingPlanRequest {
+  distance_objective: string
+  pace_or_time_objective: string
+  personal_record?: string
+  weekly_kms?: number
+  plan_duration_weeks: number
+  training_days: string[]
+  get_previous_activities_context?: boolean
+}
+
+export const trainingPlanAPI = {
+  // Generate a new training plan
+  generatePlan: async (request: TrainingPlanRequest): Promise<TrainingPlanGeneratedResponse> => {
+    return fetchAPI('/api/v1/training/generate', {
+      method: 'POST',
+      body: JSON.stringify(request),
+    })
+  },
+
+  // Get the latest training plan
+  getLatestPlan: async (): Promise<TrainingPlan | null> => {
+    return fetchAPI('/api/v1/training/latest')
+  },
+
+  // Get all training plans
+  getAllPlans: async (limit: number = 10): Promise<TrainingPlan[]> => {
+    return fetchAPI(`/api/v1/training/plans?limit=${limit}`)
+  },
+
+  // Get specific training plan
+  getPlan: async (planId: number): Promise<TrainingPlan> => {
+    return fetchAPI(`/api/v1/training/plan/${planId}`)
+  },
+
+  // Delete a training plan
+  deletePlan: async (planId: number): Promise<{ message: string }> => {
+    return fetchAPI(`/api/v1/training/plan/${planId}`, {
+      method: 'DELETE',
+    })
+  },
+
+  // Update activity completion status
+  updateActivityCompletion: async (
+    planId: number,
+    weekNumber: number,
+    day: string,
+    activityIndex: number,
+    isCompleted: boolean
+  ): Promise<ActivityCompletion> => {
+    return fetchAPI(`/api/v1/training/plan/${planId}/activity`, {
+      method: 'PUT',
+      body: JSON.stringify({
+        week_number: weekNumber,
+        day,
+        activity_index: activityIndex,
+        is_completed: isCompleted,
+      }),
+    })
+  },
+
+  // Get plan progress
+  getPlanProgress: async (planId: number): Promise<PlanProgress> => {
+    return fetchAPI(`/api/v1/training/plan/${planId}/progress`)
+  },
+
+  // Get all completions for a plan
+  getPlanCompletions: async (planId: number): Promise<ActivityCompletion[]> => {
+    return fetchAPI(`/api/v1/training/plan/${planId}/completions`)
+  },
+}
+
+export interface ActivityCompletion {
+  id: number
+  plan_id: number
+  week_number: number
+  day: string
+  activity_index: number
+  is_completed: boolean
+  completed_at: string | null
+}
+
+export interface PlanProgress {
+  total_activities: number
+  completed_activities: number
+  progress_percentage: number
+}
+
 // Utility functions
 export function formatDistance(meters: number): string {
   const km = meters / 1000
