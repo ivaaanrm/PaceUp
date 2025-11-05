@@ -1,11 +1,12 @@
 "use client"
 
-import { useEffect, useState } from "react"
-import { trainingPlanAPI, stravaAPI, type TrainingPlan, type TrainingPlanRequest, type Athlete } from "@/lib/api"
+import { useEffect, useState, useMemo } from "react"
+import { trainingPlanAPI, stravaAPI, type TrainingPlan, type TrainingPlanRequest, type Athlete, type ActivityCompletion, type PlanProgress } from "@/lib/api"
 import { Button } from "@/components/Button"
 import { Input } from "@/components/Input"
 import { RiRunLine, RiArrowRightLine, RiArrowLeftLine, RiLoader2Fill, RiCheckLine, RiCalendarCheckLine, RiDeleteBinLine, RiAddLine } from "@remixicon/react"
 import { useAuth } from "@/contexts/AuthContext"
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/Accordion"
 
 const DAYS_OF_WEEK = ["Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday", "Sunday"]
 
@@ -33,6 +34,9 @@ export default function TrainingPlanPage() {
   
   // Generated plan display
   const [generatedPlan, setGeneratedPlan] = useState<TrainingPlan | null>(null)
+  const [completions, setCompletions] = useState<ActivityCompletion[]>([])
+  const [progress, setProgress] = useState<PlanProgress | null>(null)
+  const [updatingCompletion, setUpdatingCompletion] = useState<string | null>(null)
 
   useEffect(() => {
     loadData()
@@ -52,6 +56,8 @@ export default function TrainingPlanPage() {
       if (planData) {
         setGeneratedPlan(planData)
         setCurrentStep(4) // Show the plan directly
+        // Load completions and progress
+        await loadPlanData(planData.id)
       }
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to load data')
@@ -116,6 +122,8 @@ export default function TrainingPlanPage() {
       setGeneratedPlan(result.plan)
       setLatestPlan(result.plan)
       setCurrentStep(4) // Show results
+      // Load completions and progress for the new plan
+      await loadPlanData(result.plan.id)
     } catch (err) {
       setError(err instanceof Error ? err.message : 'Failed to generate training plan')
       console.error('Error generating plan:', err)
@@ -128,6 +136,8 @@ export default function TrainingPlanPage() {
     setCurrentStep(1)
     setGeneratedPlan(null)
     setLatestPlan(null)
+    setCompletions([])
+    setProgress(null)
     setDistanceObjective("")
     setPaceOrTimeObjective("")
     setPersonalRecord("")
@@ -136,6 +146,82 @@ export default function TrainingPlanPage() {
     setSelectedDays([])
     setGetPreviousActivities(false)
     setError(null)
+  }
+
+  const loadPlanData = async (planId: number) => {
+    try {
+      const [completionsData, progressData] = await Promise.all([
+        trainingPlanAPI.getPlanCompletions(planId).catch(() => []),
+        trainingPlanAPI.getPlanProgress(planId).catch(() => null),
+      ])
+      setCompletions(completionsData)
+      setProgress(progressData)
+    } catch (err) {
+      console.error('Error loading plan data:', err)
+    }
+  }
+
+  const isActivityCompleted = (weekNumber: number, day: string, activityIndex: number): boolean => {
+    return completions.some(
+      c => c.week_number === weekNumber && 
+           c.day === day && 
+           c.activity_index === activityIndex && 
+           c.is_completed
+    )
+  }
+
+  const handleActivityToggle = async (weekNumber: number, day: string, activityIndex: number) => {
+    if (!generatedPlan) return
+    
+    const isCompleted = isActivityCompleted(weekNumber, day, activityIndex)
+    const newCompleted = !isCompleted
+    const key = `${weekNumber}-${day}-${activityIndex}`
+    
+    try {
+      setUpdatingCompletion(key)
+      await trainingPlanAPI.updateActivityCompletion(
+        generatedPlan.id,
+        weekNumber,
+        day,
+        activityIndex,
+        newCompleted
+      )
+      
+      // Update local state
+      const updatedCompletions = [...completions]
+      const existingIndex = updatedCompletions.findIndex(
+        c => c.week_number === weekNumber && c.day === day && c.activity_index === activityIndex
+      )
+      
+      if (existingIndex >= 0) {
+        updatedCompletions[existingIndex] = {
+          ...updatedCompletions[existingIndex],
+          is_completed: newCompleted,
+          completed_at: newCompleted ? new Date().toISOString() : null
+        }
+      } else {
+        updatedCompletions.push({
+          id: 0,
+          plan_id: generatedPlan.id,
+          week_number: weekNumber,
+          day,
+          activity_index: activityIndex,
+          is_completed: newCompleted,
+          completed_at: newCompleted ? new Date().toISOString() : null
+        })
+      }
+      
+      setCompletions(updatedCompletions)
+      
+      // Refresh progress
+      const progressData = await trainingPlanAPI.getPlanProgress(generatedPlan.id)
+      setProgress(progressData)
+    } catch (err) {
+      setError(err instanceof Error ? err.message : 'Failed to update activity completion')
+      console.error('Error updating activity completion:', err)
+    } finally {
+      setUpdatingCompletion(null)
+    }
   }
 
   const handleDeletePlan = async () => {
@@ -149,6 +235,8 @@ export default function TrainingPlanPage() {
       await trainingPlanAPI.deletePlan(generatedPlan.id)
       setGeneratedPlan(null)
       setLatestPlan(null)
+      setCompletions([])
+      setProgress(null)
       setCurrentStep(1)
       // Reset form
       setDistanceObjective("")
@@ -218,20 +306,52 @@ export default function TrainingPlanPage() {
             </p>
           </div>
 
-          {/* Insights */}
-          <div className="rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 p-6">
-            <h3 className="text-lg font-semibold mb-3">Insights on the Objective</h3>
-            <p className="text-gray-700 dark:text-gray-300 whitespace-pre-line">
-              {generatedPlan.insights}
-            </p>
-          </div>
+          {/* Progress Bar */}
+          {progress && (
+            <div className="rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 p-6">
+              <div className="flex items-center justify-between mb-2">
+                <h3 className="text-lg font-semibold">Training Progress</h3>
+                <span className="text-sm font-medium text-gray-600 dark:text-gray-400">
+                  {progress.completed_activities} / {progress.total_activities} activities
+                </span>
+              </div>
+              <div className="w-full bg-gray-200 dark:bg-gray-800 rounded-full h-4">
+                <div 
+                  className="bg-green-500 h-4 rounded-full transition-all duration-300"
+                  style={{ width: `${progress.progress_percentage}%` }}
+                />
+              </div>
+              <p className="text-sm text-gray-600 dark:text-gray-400 mt-2">
+                {progress.progress_percentage.toFixed(1)}% complete
+              </p>
+            </div>
+          )}
 
-          {/* Summary */}
+          {/* Insights and Summary - Accordion */}
           <div className="rounded-lg border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-950 p-6">
-            <h3 className="text-lg font-semibold mb-3">Summary of the Plan</h3>
-            <p className="text-gray-700 dark:text-gray-300 whitespace-pre-line">
-              {generatedPlan.summary}
-            </p>
+            <Accordion type="multiple" defaultValue={[]}>
+              <AccordionItem value="insights">
+                <AccordionTrigger>
+                  <h3 className="text-lg font-semibold">Insights on the Objective</h3>
+                </AccordionTrigger>
+                <AccordionContent>
+                  <p className="text-gray-700 dark:text-gray-300 whitespace-pre-line leading-relaxed">
+                    {generatedPlan.insights}
+                  </p>
+                </AccordionContent>
+              </AccordionItem>
+              
+              <AccordionItem value="summary">
+                <AccordionTrigger>
+                  <h3 className="text-lg font-semibold">Summary of the Plan</h3>
+                </AccordionTrigger>
+                <AccordionContent>
+                  <p className="text-gray-700 dark:text-gray-300 whitespace-pre-line leading-relaxed">
+                    {generatedPlan.summary}
+                  </p>
+                </AccordionContent>
+              </AccordionItem>
+            </Accordion>
           </div>
 
           {/* Training Plan */}
@@ -245,21 +365,54 @@ export default function TrainingPlanPage() {
                     Week {week.week}
                   </h4>
                   <div className="space-y-2">
-                    {week.days.map((day, idx) => (
-                      <div key={idx} className="flex gap-4 p-3 rounded-md bg-gray-50 dark:bg-gray-900">
-                        <div className="font-medium text-gray-900 dark:text-gray-100 min-w-[100px]">
-                          {day.day}
-                        </div>
-                        <div className="flex-1">
-                          <div className="font-semibold text-gray-800 dark:text-gray-200 mb-1">
-                            {day.activity_type}
+                    {week.days.map((day, idx) => {
+                      const isCompleted = isActivityCompleted(week.week, day.day, idx)
+                      const completionKey = `${week.week}-${day.day}-${idx}`
+                      const isUpdating = updatingCompletion === completionKey
+                      
+                      return (
+                        <div 
+                          key={idx} 
+                          className={`flex gap-4 p-3 rounded-md transition-colors ${
+                            isCompleted 
+                              ? 'bg-green-50 dark:bg-green-900/20 border border-green-200 dark:border-green-800' 
+                              : 'bg-gray-50 dark:bg-gray-900'
+                          }`}
+                        >
+                          <div className="flex items-start pt-1">
+                            <input
+                              type="checkbox"
+                              checked={isCompleted}
+                              onChange={() => handleActivityToggle(week.week, day.day, idx)}
+                              disabled={isUpdating}
+                              className="h-5 w-5 rounded border-gray-300 text-green-600 focus:ring-green-500 disabled:opacity-50"
+                            />
                           </div>
-                          <div className="text-sm text-gray-600 dark:text-gray-400">
-                            {day.details}
+                          <div className="flex-1">
+                            <div className="font-medium text-gray-900 dark:text-gray-100 min-w-[100px] mb-1">
+                              {day.day}
+                            </div>
+                            <div className={`font-semibold mb-1 ${
+                              isCompleted 
+                                ? 'text-green-800 dark:text-green-200' 
+                                : 'text-gray-800 dark:text-gray-200'
+                            }`}>
+                              {day.activity_type}
+                              {isCompleted && (
+                                <RiCheckLine className="inline-block ml-2 h-4 w-4 text-green-600 dark:text-green-400" />
+                              )}
+                            </div>
+                            <div className={`text-sm ${
+                              isCompleted 
+                                ? 'text-green-700 dark:text-green-300' 
+                                : 'text-gray-600 dark:text-gray-400'
+                            }`}>
+                              {day.details}
+                            </div>
                           </div>
                         </div>
-                      </div>
-                    ))}
+                      )
+                    })}
                   </div>
                 </div>
               ))}

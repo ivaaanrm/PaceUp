@@ -1,7 +1,7 @@
 from datetime import datetime
 from typing import Optional
 
-from sqlalchemy import String, create_engine, Float, Integer, DateTime, BigInteger, Text, JSON
+from sqlalchemy import String, create_engine, Float, Integer, DateTime, BigInteger, Text, JSON, UniqueConstraint
 from sqlalchemy.orm import DeclarativeBase, Mapped, mapped_column, sessionmaker, relationship
 from sqlalchemy import ForeignKey
 
@@ -208,3 +208,29 @@ class TrainingPlan(Base):
     # Relationships
     request: Mapped["TrainingRequest"] = relationship(back_populates="training_plan")
     athlete: Mapped["Athlete"] = relationship()
+    completed_activities: Mapped[list["TrainingPlanActivity"]] = relationship(back_populates="plan", cascade="all, delete-orphan")
+
+
+class TrainingPlanActivity(Base):
+    """Stores completion status for individual activities in a training plan"""
+    __tablename__ = "training_plan_activities"
+
+    id: Mapped[int] = mapped_column(Integer, primary_key=True, autoincrement=True)
+    plan_id: Mapped[int] = mapped_column(Integer, ForeignKey("training_plans.id", ondelete="CASCADE"))
+    week_number: Mapped[int] = mapped_column(Integer)  # Week number (1-based)
+    day: Mapped[str] = mapped_column(String(20))  # Day of the week
+    activity_index: Mapped[int] = mapped_column(Integer)  # Index of the activity in the week's days array
+    is_completed: Mapped[bool] = mapped_column(default=False)
+    completed_at: Mapped[Optional[datetime]] = mapped_column(DateTime)
+    
+    # Timestamps
+    created_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow)
+    updated_at: Mapped[datetime] = mapped_column(DateTime, default=datetime.utcnow, onupdate=datetime.utcnow)
+    
+    # Relationships
+    plan: Mapped["TrainingPlan"] = relationship(back_populates="completed_activities")
+    
+    # Unique constraint: one completion record per activity
+    __table_args__ = (
+        UniqueConstraint('plan_id', 'week_number', 'day', 'activity_index', name='uq_plan_activity'),
+    )

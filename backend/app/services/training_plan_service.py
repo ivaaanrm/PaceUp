@@ -11,7 +11,6 @@ from openai import OpenAI
 
 from app.core.config import config
 from app.db.schema import TrainingRequest, TrainingPlan, Activity, Athlete
-from app.services.strava_db_service import strava_db_service
 
 logger = logging.getLogger(__name__)
 
@@ -153,6 +152,10 @@ class TrainingPlanService:
             # Try to extract insights and summary from the response
             insights = self._extract_section(ai_response_text, "Insights on the Objective", "Summary")
             summary = self._extract_section(ai_response_text, "Summary of the Plan Objective", "JSON")
+            
+            # Clean up markdown formatting from insights and summary
+            insights = self._clean_markdown_text(insights)
+            summary = self._clean_markdown_text(summary)
             
             # Clean up common JSON issues
             # Remove trailing commas before closing braces/brackets
@@ -391,6 +394,40 @@ Please ensure that:
             end_idx = len(text)
         
         return text[start_idx:end_idx].strip()
+    
+    def _clean_markdown_text(self, text: str) -> str:
+        """
+        Clean markdown formatting from text.
+        
+        Args:
+            text: Text with potential markdown formatting
+        
+        Returns:
+            Cleaned text without markdown formatting
+        """
+        if not text:
+            return ""
+        
+        # Remove markdown bold (**text** or __text__)
+        text = re.sub(r'\*\*(.*?)\*\*', r'\1', text)
+        text = re.sub(r'__(.*?)__', r'\1', text)
+        
+        # Remove markdown headers (# ## ###)
+        text = re.sub(r'^#+\s*', '', text, flags=re.MULTILINE)
+        
+        # Remove leading/trailing colons and extra whitespace
+        text = text.strip()
+        text = re.sub(r'^:\s*', '', text)
+        text = re.sub(r'\s*:\s*$', '', text)
+        
+        # Remove leading/trailing asterisks and dashes
+        text = re.sub(r'^[\*\-\s]+', '', text)
+        text = re.sub(r'[\*\-\s]+$', '', text)
+        
+        # Clean up multiple spaces
+        text = re.sub(r'\s+', ' ', text)
+        
+        return text.strip()
     
     def get_latest_plan(
         self,

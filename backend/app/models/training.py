@@ -70,3 +70,32 @@ class TrainingPlanGeneratedResponse(BaseModel):
     request: TrainingRequestResponse
     plan: TrainingPlanResponse
 
+
+class ActivityCompletionRequest(BaseModel):
+    """Request model for updating activity completion status"""
+    week_number: int
+    day: str
+    activity_index: int
+    is_completed: bool
+
+
+class ActivityCompletionResponse(BaseModel):
+    """Response model for activity completion status"""
+    id: int
+    plan_id: int
+    week_number: int
+    day: str
+    activity_index: int
+    is_completed: bool
+    completed_at: Optional[datetime]
+    
+    class Config:
+        from_attributes = True
+
+
+class PlanProgressResponse(BaseModel):
+    """Response model for training plan progress"""
+    total_activities: int
+    completed_activities: int
+    progress_percentage: float
+

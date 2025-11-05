@@ -332,6 +332,51 @@ export const trainingPlanAPI = {
       method: 'DELETE',
     })
   },
+
+  // Update activity completion status
+  updateActivityCompletion: async (
+    planId: number,
+    weekNumber: number,
+    day: string,
+    activityIndex: number,
+    isCompleted: boolean
+  ): Promise<ActivityCompletion> => {
+    return fetchAPI(`/api/v1/training/plan/${planId}/activity`, {
+      method: 'PUT',
+      body: JSON.stringify({
+        week_number: weekNumber,
+        day,
+        activity_index: activityIndex,
+        is_completed: isCompleted,
+      }),
+    })
+  },
+
+  // Get plan progress
+  getPlanProgress: async (planId: number): Promise<PlanProgress> => {
+    return fetchAPI(`/api/v1/training/plan/${planId}/progress`)
+  },
+
+  // Get all completions for a plan
+  getPlanCompletions: async (planId: number): Promise<ActivityCompletion[]> => {
+    return fetchAPI(`/api/v1/training/plan/${planId}/completions`)
+  },
+}
+
+export interface ActivityCompletion {
+  id: number
+  plan_id: number
+  week_number: number
+  day: string
+  activity_index: number
+  is_completed: boolean
+  completed_at: string | null
+}
+
+export interface PlanProgress {
+  total_activities: number
+  completed_activities: number
+  progress_percentage: number
 }
 
 // Utility functions
