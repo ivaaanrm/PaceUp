@@ -258,3 +258,43 @@ export const CustomTooltip4 = ({ payload, active }: TooltipProps) => {
     </div>
   )
 }
+
+export const ActivityChartTooltip = ({ payload, active, label }: TooltipProps) => {
+  if (!active || !payload || payload.length === 0) return null
+
+  const activityData = payload[0].payload
+  const distanceKm = activityData.distance ? (activityData.distance / 1000).toFixed(2) : 'N/A'
+  const pace = activityData.average_speed 
+    ? (() => {
+        const minutesPerKm = 1000 / (activityData.average_speed * 60)
+        const minutes = Math.floor(minutesPerKm)
+        const seconds = Math.round((minutesPerKm - minutes) * 60)
+        return `${minutes}:${seconds.toString().padStart(2, '0')} /km`
+      })()
+    : 'N/A'
+  const heartRate = activityData.average_heartrate 
+    ? `${Math.round(activityData.average_heartrate)} bpm`
+    : 'N/A'
+
+  return (
+    <div className="rounded-lg border border-gray-200 bg-white p-3 text-sm shadow-lg dark:border-gray-800 dark:bg-gray-900">
+      <div className="mb-2 border-b border-gray-200 pb-2 dark:border-gray-700">
+        <p className="font-medium text-gray-900 dark:text-gray-50">{label}</p>
+      </div>
+      <div className="space-y-2">
+        <div className="flex items-center justify-between gap-4">
+          <span className="text-xs text-gray-500 dark:text-gray-400">Distance</span>
+          <span className="font-medium text-gray-900 dark:text-gray-50">{distanceKm} km</span>
+        </div>
+        <div className="flex items-center justify-between gap-4">
+          <span className="text-xs text-gray-500 dark:text-gray-400">Pace</span>
+          <span className="font-medium text-gray-900 dark:text-gray-50">{pace}</span>
+        </div>
+        <div className="flex items-center justify-between gap-4">
+          <span className="text-xs text-gray-500 dark:text-gray-400">Heart Rate</span>
+          <span className="font-medium text-gray-900 dark:text-gray-50">{heartRate}</span>
+        </div>
+      </div>
+    </div>
+  )
+}
