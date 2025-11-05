@@ -1,5 +1,6 @@
 from dotenv import load_dotenv
 from pydantic_settings import BaseSettings
+from pydantic import field_validator
 
 load_dotenv()
 
@@ -15,9 +16,20 @@ class Config(BaseSettings):
     database_url: str = "postgresql://postgres:postgres@localhost:5432/paceup"
     
     # JWT Authentication Configuration
-    jwt_secret_key: str = "your-secret-key-change-in-production"  # Change this in production!
+    jwt_secret_key: str = ""  # Must be set via environment variable
     jwt_algorithm: str = "HS256"
     jwt_access_token_expire_minutes: int = 60 * 24 * 7  # 7 days
+    
+    @field_validator('jwt_secret_key')
+    @classmethod
+    def validate_jwt_secret_key(cls, v: str) -> str:
+        """Validate that JWT secret key is not empty"""
+        if not v or v.strip() == "":
+            raise ValueError(
+                "JWT_SECRET_KEY must be set in environment variables. "
+                "Get a secret key by running: openssl rand -hex 32"
+            )
+        return v
     
     # Strava API Configuration
     strava_client_id: str = ""
