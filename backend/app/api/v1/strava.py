@@ -2,11 +2,11 @@
 from fastapi import APIRouter, Depends, HTTPException, Query
 from sqlalchemy.orm import Session
 from typing import List, Optional
-from datetime import datetime
+from datetime import datetime, timezone
 import logging
 
 from app.db.schema import SessionLocal, User
-from app.services.strava_service import strava_service
+from app.services.strava_service import strava_service, StravaRateLimitError
 from app.services.strava_db_service import strava_db_service
 from app.models.strava import (
     AthleteResponse,
@@ -18,6 +18,9 @@ from app.models.strava import (
 from app.api.v1.auth import get_current_user
 
 logger = logging.getLogger(__name__)
+
+# Default sync date: September 1, 2025
+DEFAULT_SYNC_AFTER_DATE = datetime(2025, 9, 1, 0, 0, 0, tzinfo=timezone.utc)
 
 router = APIRouter(prefix="/strava", tags=["Strava"])
 
@@ -96,13 +99,14 @@ async def get_athlete_stats(db: Session = Depends(get_db)):
 @router.post("/sync/activities", response_model=SyncResponse)
 async def sync_activities(
     db: Session = Depends(get_db),
-    after: Optional[datetime] = Query(None, description="Sync activities after this date"),
+    after: Optional[datetime] = Query(None, description="Sync activities after this date (defaults to September 1, 2025)"),
     before: Optional[datetime] = Query(None, description="Sync activities before this date"),
     current_user: User = Depends(get_current_user)
 ):
     """
     Sync activities from Strava to the database.
     This will fetch athlete profile, stats, and all activities from Strava API and store them in the database.
+    By default, only syncs activities after September 1, 2025.
     Requires authentication.
     """
     try:
@@ -118,8 +122,12 @@ async def sync_activities(
         except Exception as e:
             logger.warning(f"Could not fetch athlete stats: {str(e)}")
         
+        # Use default date if not provided
+        sync_after = after if after is not None else DEFAULT_SYNC_AFTER_DATE
+        logger.info(f"Syncing activities after {sync_after}")
+        
         # Fetch all activities
-        activities = strava_service.get_all_activities(after=after, before=before)
+        activities = strava_service.get_all_activities(after=sync_after, before=before)
         
         synced_count = 0
         for activity_data in activities:
@@ -133,6 +141,12 @@ async def sync_activities(
         return SyncResponse(
             message=f"Successfully synced {synced_count} activities",
             synced_count=synced_count
+        )
+    except StravaRateLimitError as e:
+        logger.error(f"Strava rate limit exceeded: {str(e)}")
+        raise HTTPException(
+            status_code=429,
+            detail="Strava API rate limit exceeded. Please wait 15 minutes before trying again."
         )
     except Exception as e:
         logger.error(f"Error syncing activities: {str(e)}")
@@ -160,6 +174,12 @@ async def sync_activity_laps(
             message=f"Successfully synced {len(laps)} laps for activity {activity_id}",
             synced_count=len(laps)
         )
+    except StravaRateLimitError as e:
+        logger.error(f"Strava rate limit exceeded: {str(e)}")
+        raise HTTPException(
+            status_code=429,
+            detail="Strava API rate limit exceeded. Please wait 15 minutes before trying again."
+        )
     except Exception as e:
         logger.error(f"Error syncing laps for activity {activity_id}: {str(e)}")
         raise HTTPException(status_code=500, detail=f"Failed to sync laps: {str(e)}")
@@ -168,13 +188,14 @@ async def sync_activity_laps(
 @router.post("/sync/all", response_model=SyncResponse)
 async def sync_all(
     db: Session = Depends(get_db),
-    after: Optional[datetime] = Query(None, description="Sync activities after this date"),
+    after: Optional[datetime] = Query(None, description="Sync activities after this date (defaults to September 1, 2025)"),
     before: Optional[datetime] = Query(None, description="Sync activities before this date"),
     include_laps: bool = Query(False, description="Also sync laps for each activity"),
     current_user: User = Depends(get_current_user)
 ):
     """
     Sync all data from Strava: athlete profile, stats, activities, and optionally laps.
+    By default, only syncs activities after September 1, 2025.
     Requires authentication.
     """
     try:
@@ -190,36 +211,72 @@ async def sync_all(
         except Exception as e:
             logger.warning(f"Could not fetch athlete stats: {str(e)}")
         
+        # Use default date if not provided
+        sync_after = after if after is not None else DEFAULT_SYNC_AFTER_DATE
+        logger.info(f"Syncing activities after {sync_after}")
+        
         # Fetch all activities
-        activities = strava_service.get_all_activities(after=after, before=before)
+        activities = strava_service.get_all_activities(after=sync_after, before=before)
         
         activities_count = 0
+        new_activities_count = 0
         laps_count = 0
         
         for activity_data in activities:
             try:
+                activity_id = activity_data.get('id')
+                
+                # Check if activity already exists before saving
+                existing_activity = strava_db_service.get_activity(db, activity_id)
+                is_new_activity = existing_activity is None
+                
                 # Save activity
                 strava_db_service.save_activity(db, activity_data, athlete.id)
                 activities_count += 1
                 
+                if is_new_activity:
+                    new_activities_count += 1
+                
                 # Optionally fetch and save laps
+                # Only fetch laps for new activities or activities without laps
                 if include_laps:
-                    try:
-                        laps_data = strava_service.get_activity_laps(activity_data['id'])
-                        laps = strava_db_service.save_laps(db, activity_data['id'], laps_data)
-                        laps_count += len(laps)
-                    except Exception as e:
-                        logger.warning(f"Could not fetch laps for activity {activity_data['id']}: {str(e)}")
+                    # Check if activity already has laps
+                    has_existing_laps = strava_db_service.has_laps(db, activity_id)
+                    
+                    if is_new_activity or not has_existing_laps:
+                        try:
+                            laps_data = strava_service.get_activity_laps(activity_id)
+                            laps = strava_db_service.save_laps(db, activity_id, laps_data)
+                            laps_count += len(laps)
+                            logger.info(f"Fetched {len(laps)} laps for activity {activity_id}")
+                        except StravaRateLimitError:
+                            # Re-raise rate limit errors to be handled at the top level
+                            raise
+                        except Exception as e:
+                            logger.warning(f"Could not fetch laps for activity {activity_id}: {str(e)}")
+                    else:
+                        logger.info(f"Skipping lap fetch for activity {activity_id} (already has laps)")
+            except StravaRateLimitError:
+                # Re-raise rate limit errors to be handled at the top level
+                raise
             except Exception as e:
                 logger.error(f"Error saving activity {activity_data.get('id')}: {str(e)}")
         
         message = f"Successfully synced {activities_count} activities"
+        if new_activities_count > 0:
+            message += f" ({new_activities_count} new)"
         if include_laps:
             message += f" and {laps_count} laps"
         
         return SyncResponse(
             message=message,
             synced_count=activities_count
+        )
+    except StravaRateLimitError as e:
+        logger.error(f"Strava rate limit exceeded: {str(e)}")
+        raise HTTPException(
+            status_code=429,
+            detail="Strava API rate limit exceeded. Please wait 15 minutes before trying again."
         )
     except Exception as e:
         logger.error(f"Error syncing all data: {str(e)}")

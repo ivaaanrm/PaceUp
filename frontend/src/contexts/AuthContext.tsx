@@ -46,6 +46,21 @@ export function AuthProvider({ children }: { children: ReactNode }) {
       }
     }
     setLoading(false)
+
+    // Listen for token expiration events from API calls
+    const handleTokenExpired = () => {
+      console.log('Token expired, clearing auth state')
+      setToken(null)
+      setUser(null)
+      localStorage.removeItem(TOKEN_KEY)
+      localStorage.removeItem(USER_KEY)
+    }
+
+    window.addEventListener('auth:token-expired', handleTokenExpired)
+
+    return () => {
+      window.removeEventListener('auth:token-expired', handleTokenExpired)
+    }
   }, [])
 
   const login = async (email: string, password: string) => {

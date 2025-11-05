@@ -256,6 +256,12 @@ class StravaDBService:
         ).order_by(Lap.lap_index).all()
     
     @staticmethod
+    def has_laps(db: Session, activity_id: int) -> bool:
+        """Check if an activity has laps in the database"""
+        lap_count = db.query(Lap).filter(Lap.activity_id == activity_id).count()
+        return lap_count > 0
+    
+    @staticmethod
     def get_all_laps_with_activity_info(db: Session, athlete_id: int, limit: int = 1000):
         """Get all laps with their activity information"""
         from sqlalchemy import desc

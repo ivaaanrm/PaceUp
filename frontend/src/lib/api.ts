@@ -97,9 +97,12 @@ async function fetchAPI(endpoint: string, options?: RequestInit) {
     Object.assign(headers, existingHeaders)
   }
   
-  // Add authorization header if token exists
+  // Add authorization header if token exists (trim whitespace)
   if (token) {
-    headers['Authorization'] = `Bearer ${token}`
+    const trimmedToken = token.trim()
+    if (trimmedToken) {
+      headers['Authorization'] = `Bearer ${trimmedToken}`
+    }
   }
   
   const response = await fetch(`${API_BASE_URL}${endpoint}`, {
@@ -108,6 +111,28 @@ async function fetchAPI(endpoint: string, options?: RequestInit) {
   })
 
   if (!response.ok) {
+    // Handle 401 Unauthorized - clear invalid token
+    if (response.status === 401) {
+      if (typeof window !== 'undefined') {
+        localStorage.removeItem('paceup_auth_token')
+        localStorage.removeItem('paceup_user')
+        // Trigger a custom event that AuthContext can listen to
+        window.dispatchEvent(new CustomEvent('auth:token-expired'))
+      }
+    }
+    
+    // Handle 429 Too Many Requests - show alert notification
+    if (response.status === 429) {
+      const error = await response.json().catch(() => ({ detail: 'Rate limit exceeded' }))
+      const errorMessage = error.detail || 'Strava API rate limit exceeded. Please wait 15 minutes before trying again.'
+      
+      if (typeof window !== 'undefined') {
+        alert(errorMessage)
+      }
+      
+      throw new Error(errorMessage)
+    }
+    
     const error = await response.json().catch(() => ({ detail: 'An error occurred' }))
     throw new Error(error.detail || `API request failed: ${response.statusText}`)
   }
