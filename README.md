@@ -45,7 +45,7 @@ See [DEPLOYMENT.md](docs/DEPLOYMENT.md) for detailed production deployment instr
 ```bash
 # Configure environment variables
 cp env.production.template .env
-# Edit .env with your production settings (domain: paceup.site)
+# Edit .env with your production settings (API domain: api.paceup.site)
 
 # Deploy
 docker-compose up -d
@@ -62,8 +62,8 @@ chmod +x scripts/deploy-backend.sh
 1. Connect your repository to Vercel
 2. Set root directory to `frontend`
 3. Add environment variables:
-   - `NEXT_PUBLIC_API_URL`: `https://paceup.site` (or `http://paceup.site` initially)
-   - `NEXT_PUBLIC_BROWSER_API_URL`: `https://paceup.site` (or `http://paceup.site` initially)
+   - `NEXT_PUBLIC_API_URL`: `https://api.paceup.site` (or `http://api.paceup.site` initially)
+   - `NEXT_PUBLIC_BROWSER_API_URL`: `https://api.paceup.site` (or `http://api.paceup.site` initially)
 4. Deploy
 
 For complete instructions, see [DEPLOYMENT.md](docs/DEPLOYMENT.md).

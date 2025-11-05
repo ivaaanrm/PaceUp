@@ -1,12 +1,12 @@
 #!/bin/bash
 
 # SSL Certificate Setup Script
-# This script helps set up SSL certificates for paceup.site
+# This script helps set up SSL certificates for api.paceup.site
 # Usage: ./scripts/setup-ssl.sh
 
 set -e
 
-DOMAIN="paceup.site"
+DOMAIN="api.paceup.site"
 EMAIL="${CERTBOT_EMAIL:-your-email@example.com}"
 
 echo "=========================================="
@@ -39,15 +39,14 @@ if [ -z "$email" ]; then
 fi
 
 echo ""
-echo "Requesting certificates for $DOMAIN and www.$DOMAIN..."
+echo "Requesting certificates for $DOMAIN..."
 docker-compose run --rm certbot certonly \
     --webroot \
     --webroot-path=/var/www/certbot \
     --email "$email" \
     --agree-tos \
     --no-eff-email \
-    -d "$DOMAIN" \
-    -d "www.$DOMAIN"
+    -d "$DOMAIN"
 
 if [ $? -eq 0 ]; then
     echo ""
@@ -70,9 +69,8 @@ if [ $? -eq 0 ]; then
     echo "SSL Setup Complete!"
     echo "=========================================="
     echo ""
-    echo "Your site is now available at:"
+    echo "Your API is now available at:"
     echo "  - https://$DOMAIN"
-    echo "  - https://www.$DOMAIN"
     echo ""
     echo "HTTP traffic will automatically redirect to HTTPS"
     echo ""
