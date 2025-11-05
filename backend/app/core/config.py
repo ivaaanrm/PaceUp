@@ -29,6 +29,11 @@ class Config(BaseSettings):
     # OpenAI API Configuration
     openai_api_key: str = ""
     openai_model: str = "gpt-3.5-turbo"  # or "gpt-3.5-turbo" for cheaper option
+    
+    # CORS Configuration
+    # Comma-separated list of allowed origins (e.g., "http://localhost:3000,https://paceup-site.vercel.app")
+    # For production, include your Vercel frontend URL
+    allowed_origins: str = "http://localhost:3000,http://localhost:8000,http://localhost"
 
     class Config:
         env_file = ".env"

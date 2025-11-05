@@ -28,8 +28,23 @@ RUN uv sync --frozen --no-dev
 # Copy the rest of the application (excluding .venv due to .dockerignore)
 COPY . .
 
+# Build arguments for port and workers configuration
+# Defaults: port 80 for dev, 8000 for prod; workers 1 for dev, 4 for prod
+ARG APP_PORT=80
+ARG WORKERS=4
+
+# Convert ARG to ENV so they're available at runtime
+ENV APP_PORT=${APP_PORT}
+ENV WORKERS=${WORKERS}
+
 # Expose the specified port for FastAPI
-EXPOSE 80
+EXPOSE ${APP_PORT}
 
 # Use uv run to execute the app (it handles the virtual environment automatically)
-CMD ["uv", "run", "uvicorn", "app.main:app", "--host", "0.0.0.0", "--port", "80"]
+# Production: use multiple workers, Development: single worker
+# Use sh -c to properly handle the conditional logic
+CMD sh -c "if [ \"$WORKERS\" = \"1\" ]; then \
+  uv run uvicorn app.main:app --host 0.0.0.0 --port $APP_PORT; \
+else \
+  uv run uvicorn app.main:app --host 0.0.0.0 --port $APP_PORT --workers $WORKERS; \
+fi"

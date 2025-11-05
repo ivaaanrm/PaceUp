@@ -376,3 +376,5 @@ pnpm-lock.yaml
 *.temp
 docs/
 .pnpm-store
+
+env.*
