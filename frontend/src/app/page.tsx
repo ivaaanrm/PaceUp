@@ -17,6 +17,32 @@ const TRAINING_START_DATE = new Date('2025-09-01')
 
 const OBJECTIVE_TIME_KEY = 'race_objective_time'
 
+// Helper function to calculate linear regression trend line
+function calculateTrendLine(data: Array<{ x: number; y: number | null }>): Array<{ x: number; y: number }> {
+  // Filter out null values and calculate regression
+  const validData = data.filter(d => d.y !== null && d.y !== undefined) as Array<{ x: number; y: number }>
+  
+  if (validData.length < 2) {
+    return []
+  }
+
+  const n = validData.length
+  const sumX = validData.reduce((sum, d) => sum + d.x, 0)
+  const sumY = validData.reduce((sum, d) => sum + d.y, 0)
+  const sumXY = validData.reduce((sum, d) => sum + d.x * d.y, 0)
+  const sumXX = validData.reduce((sum, d) => sum + d.x * d.x, 0)
+
+  // Calculate slope (m) and intercept (b) for y = mx + b
+  const m = (n * sumXY - sumX * sumY) / (n * sumXX - sumX * sumX)
+  const b = (sumY - m * sumX) / n
+
+  // Generate trend line points for all x values
+  return data.map(d => ({
+    x: d.x,
+    y: m * d.x + b
+  }))
+}
+
 function RaceCountdown() {
   const [countdown, setCountdown] = useState({ days: 0, weeks: 0 })
   const [objectiveTime, setObjectiveTime] = useState<string>(() => {
@@ -1050,243 +1076,330 @@ export default function DashboardPage() {
                 {/* Weekly Trend Charts */}
                 <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
                   {/* Pace Trend Chart */}
-                  {weekly1KmLapsMetrics.some(w => w.metrics.avgPace !== null) && (
-                    <div className="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
-                      <h3 className="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-50">
-                        Average Pace Trend
-                      </h3>
-                      <ResponsiveContainer width="100%" height={300}>
-                        <LineChart data={weekly1KmLapsMetrics.map(w => ({
-                          week: w.weekLabel,
-                          pace: w.metrics.avgPace,
-                          count: w.metrics.count,
-                        }))}>
-                          <CartesianGrid strokeDasharray="3 3" className="stroke-gray-200 dark:stroke-gray-800" />
-                          <XAxis
-                            dataKey="week"
-                            className="text-xs text-gray-500 dark:text-gray-400"
-                            tick={{ fill: 'currentColor' }}
-                            angle={-45}
-                            textAnchor="end"
-                            height={80}
-                          />
-                          <YAxis
-                            tickFormatter={formatPaceFromMinPerKm}
-                            className="text-xs text-gray-500 dark:text-gray-400"
-                            tick={{ fill: 'currentColor' }}
-                            domain={(() => {
-                              const validPaces = weekly1KmLapsMetrics
-                                .map(w => w.metrics.avgPace)
-                                .filter((p): p is number => p !== null && p !== undefined)
-                              if (validPaces.length === 0) return ['auto', 'auto']
-                              const minPace = Math.min(...validPaces)
-                              const maxPace = Math.max(...validPaces)
-                              const padding = (maxPace - minPace) * 0.1 || 0.2
-                              return [maxPace + padding, minPace - padding] // Reversed for pace
-                            })()}
-                            reversed
-                            label={{ 
-                              value: 'Pace (min/km)', 
-                              angle: -90, 
-                              position: 'insideLeft',
-                              style: { textAnchor: 'middle' }
-                            }}
-                          />
-                          <Tooltip
-                            content={({ active, payload }) => {
-                              if (active && payload && payload.length) {
-                                const data = payload[0].payload
-                                return (
-                                  <div className="rounded-lg border border-gray-200 bg-white p-3 shadow-lg dark:border-gray-800 dark:bg-gray-900">
-                                    <p className="font-semibold text-gray-900 dark:text-gray-50">
-                                      Week of {data.week}
-                                    </p>
-                                    {data.pace && (
-                                      <p className="mt-1 text-sm text-orange-600 dark:text-orange-400">
-                                        Pace: {formatPaceFromMinPerKm(data.pace)} /km
+                  {weekly1KmLapsMetrics.some(w => w.metrics.avgPace !== null) && (() => {
+                    const chartData = weekly1KmLapsMetrics.map((w, index) => ({
+                      week: w.weekLabel,
+                      pace: w.metrics.avgPace,
+                      count: w.metrics.count,
+                      x: index,
+                    }))
+                    
+                    const trendData = calculateTrendLine(
+                      chartData.map(d => ({ x: d.x, y: d.pace }))
+                    )
+                    
+                    const chartDataWithTrend = chartData.map((d, index) => ({
+                      ...d,
+                      trend: trendData[index]?.y ?? null,
+                    }))
+                    
+                    return (
+                      <div className="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
+                        <h3 className="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-50">
+                          Average Pace Trend
+                        </h3>
+                        <ResponsiveContainer width="100%" height={300}>
+                          <LineChart data={chartDataWithTrend}>
+                            <CartesianGrid strokeDasharray="3 3" className="stroke-gray-200 dark:stroke-gray-800" />
+                            <XAxis
+                              dataKey="week"
+                              className="text-xs text-gray-500 dark:text-gray-400"
+                              tick={{ fill: 'currentColor' }}
+                              angle={-45}
+                              textAnchor="end"
+                              height={80}
+                            />
+                            <YAxis
+                              tickFormatter={formatPaceFromMinPerKm}
+                              className="text-xs text-gray-500 dark:text-gray-400"
+                              tick={{ fill: 'currentColor' }}
+                              domain={(() => {
+                                const validPaces = weekly1KmLapsMetrics
+                                  .map(w => w.metrics.avgPace)
+                                  .filter((p): p is number => p !== null && p !== undefined)
+                                if (validPaces.length === 0) return ['auto', 'auto']
+                                const minPace = Math.min(...validPaces)
+                                const maxPace = Math.max(...validPaces)
+                                const padding = (maxPace - minPace) * 0.1 || 0.2
+                                return [maxPace + padding, minPace - padding] // Reversed for pace
+                              })()}
+                              reversed
+                              label={{ 
+                                value: 'Pace (min/km)', 
+                                angle: -90, 
+                                position: 'insideLeft',
+                                style: { textAnchor: 'middle' }
+                              }}
+                            />
+                            <Tooltip
+                              content={({ active, payload }) => {
+                                if (active && payload && payload.length) {
+                                  const data = payload[0].payload
+                                  return (
+                                    <div className="rounded-lg border border-gray-200 bg-white p-3 shadow-lg dark:border-gray-800 dark:bg-gray-900">
+                                      <p className="font-semibold text-gray-900 dark:text-gray-50">
+                                        Week of {data.week}
                                       </p>
-                                    )}
-                                    <p className="text-xs text-gray-500 dark:text-gray-400">
-                                      {data.count} laps
-                                    </p>
-                                  </div>
-                                )
-                              }
-                              return null
-                            }}
-                          />
-                          <Legend />
-                          <Line
-                            type="monotone"
-                            dataKey="pace"
-                            stroke="#f97316"
-                            strokeWidth={3}
-                            dot={{ fill: '#f97316', r: 4 }}
-                            name="Average Pace"
-                            connectNulls
-                          />
-                        </LineChart>
-                      </ResponsiveContainer>
-                    </div>
-                  )}
+                                      {data.pace && (
+                                        <p className="mt-1 text-sm text-orange-600 dark:text-orange-400">
+                                          Pace: {formatPaceFromMinPerKm(data.pace)} /km
+                                        </p>
+                                      )}
+                                      {data.trend && (
+                                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                          Trend: {formatPaceFromMinPerKm(data.trend)} /km
+                                        </p>
+                                      )}
+                                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                                        {data.count} laps
+                                      </p>
+                                    </div>
+                                  )
+                                }
+                                return null
+                              }}
+                            />
+                            <Legend />
+                            <Line
+                              type="monotone"
+                              dataKey="pace"
+                              stroke="#f97316"
+                              strokeWidth={3}
+                              dot={{ fill: '#f97316', r: 4 }}
+                              name="Average Pace"
+                              connectNulls
+                            />
+                            <Line
+                              type="linear"
+                              dataKey="trend"
+                              stroke="#fb923c"
+                              strokeWidth={2}
+                              strokeDasharray="5 5"
+                              dot={false}
+                              name="Trend Line"
+                              connectNulls
+                            />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      </div>
+                    )
+                  })()}
 
                   {/* Heart Rate Trend Chart */}
-                  {weekly1KmLapsMetrics.some(w => w.metrics.avgHeartRate !== null) && (
-                    <div className="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
-                      <h3 className="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-50">
-                        Average Heart Rate Trend
-                      </h3>
-                      <ResponsiveContainer width="100%" height={300}>
-                        <LineChart data={weekly1KmLapsMetrics.map(w => ({
-                          week: w.weekLabel,
-                          heartRate: w.metrics.avgHeartRate,
-                          count: w.metrics.count,
-                        }))}>
-                          <CartesianGrid strokeDasharray="3 3" className="stroke-gray-200 dark:stroke-gray-800" />
-                          <XAxis
-                            dataKey="week"
-                            className="text-xs text-gray-500 dark:text-gray-400"
-                            tick={{ fill: 'currentColor' }}
-                            angle={-45}
-                            textAnchor="end"
-                            height={80}
-                          />
-                          <YAxis
-                            className="text-xs text-gray-500 dark:text-gray-400"
-                            tick={{ fill: 'currentColor' }}
-                            domain={(() => {
-                              const validHR = weekly1KmLapsMetrics
-                                .map(w => w.metrics.avgHeartRate)
-                                .filter((hr): hr is number => hr !== null && hr !== undefined)
-                              if (validHR.length === 0) return ['auto', 'auto']
-                              const minHR = Math.min(...validHR)
-                              const maxHR = Math.max(...validHR)
-                              const padding = (maxHR - minHR) * 0.1 || 5
-                              return [Math.max(0, Math.floor((minHR - padding) / 10) * 10), Math.ceil((maxHR + padding) / 10) * 10]
-                            })()}
-                            label={{ 
-                              value: 'Heart Rate (bpm)', 
-                              angle: -90, 
-                              position: 'insideLeft',
-                              style: { textAnchor: 'middle' }
-                            }}
-                          />
-                          <Tooltip
-                            content={({ active, payload }) => {
-                              if (active && payload && payload.length) {
-                                const data = payload[0].payload
-                                return (
-                                  <div className="rounded-lg border border-gray-200 bg-white p-3 shadow-lg dark:border-gray-800 dark:bg-gray-900">
-                                    <p className="font-semibold text-gray-900 dark:text-gray-50">
-                                      Week of {data.week}
-                                    </p>
-                                    {data.heartRate && (
-                                      <p className="mt-1 text-sm text-red-600 dark:text-red-400">
-                                        Heart Rate: {Math.round(data.heartRate)} bpm
+                  {weekly1KmLapsMetrics.some(w => w.metrics.avgHeartRate !== null) && (() => {
+                    const chartData = weekly1KmLapsMetrics.map((w, index) => ({
+                      week: w.weekLabel,
+                      heartRate: w.metrics.avgHeartRate,
+                      count: w.metrics.count,
+                      x: index,
+                    }))
+                    
+                    const trendData = calculateTrendLine(
+                      chartData.map(d => ({ x: d.x, y: d.heartRate }))
+                    )
+                    
+                    const chartDataWithTrend = chartData.map((d, index) => ({
+                      ...d,
+                      trend: trendData[index]?.y ?? null,
+                    }))
+                    
+                    return (
+                      <div className="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
+                        <h3 className="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-50">
+                          Average Heart Rate Trend
+                        </h3>
+                        <ResponsiveContainer width="100%" height={300}>
+                          <LineChart data={chartDataWithTrend}>
+                            <CartesianGrid strokeDasharray="3 3" className="stroke-gray-200 dark:stroke-gray-800" />
+                            <XAxis
+                              dataKey="week"
+                              className="text-xs text-gray-500 dark:text-gray-400"
+                              tick={{ fill: 'currentColor' }}
+                              angle={-45}
+                              textAnchor="end"
+                              height={80}
+                            />
+                            <YAxis
+                              className="text-xs text-gray-500 dark:text-gray-400"
+                              tick={{ fill: 'currentColor' }}
+                              domain={(() => {
+                                const validHR = weekly1KmLapsMetrics
+                                  .map(w => w.metrics.avgHeartRate)
+                                  .filter((hr): hr is number => hr !== null && hr !== undefined)
+                                if (validHR.length === 0) return ['auto', 'auto']
+                                const minHR = Math.min(...validHR)
+                                const maxHR = Math.max(...validHR)
+                                const padding = (maxHR - minHR) * 0.1 || 5
+                                return [Math.max(0, Math.floor((minHR - padding) / 10) * 10), Math.ceil((maxHR + padding) / 10) * 10]
+                              })()}
+                              label={{ 
+                                value: 'Heart Rate (bpm)', 
+                                angle: -90, 
+                                position: 'insideLeft',
+                                style: { textAnchor: 'middle' }
+                              }}
+                            />
+                            <Tooltip
+                              content={({ active, payload }) => {
+                                if (active && payload && payload.length) {
+                                  const data = payload[0].payload
+                                  return (
+                                    <div className="rounded-lg border border-gray-200 bg-white p-3 shadow-lg dark:border-gray-800 dark:bg-gray-900">
+                                      <p className="font-semibold text-gray-900 dark:text-gray-50">
+                                        Week of {data.week}
                                       </p>
-                                    )}
-                                    <p className="text-xs text-gray-500 dark:text-gray-400">
-                                      {data.count} laps
-                                    </p>
-                                  </div>
-                                )
-                              }
-                              return null
-                            }}
-                          />
-                          <Legend />
-                          <Line
-                            type="monotone"
-                            dataKey="heartRate"
-                            stroke="#ef4444"
-                            strokeWidth={3}
-                            dot={{ fill: '#ef4444', r: 4 }}
-                            name="Average Heart Rate"
-                            connectNulls
-                          />
-                        </LineChart>
-                      </ResponsiveContainer>
-                    </div>
-                  )}
+                                      {data.heartRate && (
+                                        <p className="mt-1 text-sm text-red-600 dark:text-red-400">
+                                          Heart Rate: {Math.round(data.heartRate)} bpm
+                                        </p>
+                                      )}
+                                      {data.trend && (
+                                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                          Trend: {Math.round(data.trend)} bpm
+                                        </p>
+                                      )}
+                                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                                        {data.count} laps
+                                      </p>
+                                    </div>
+                                  )
+                                }
+                                return null
+                              }}
+                            />
+                            <Legend />
+                            <Line
+                              type="monotone"
+                              dataKey="heartRate"
+                              stroke="#ef4444"
+                              strokeWidth={3}
+                              dot={{ fill: '#ef4444', r: 4 }}
+                              name="Average Heart Rate"
+                              connectNulls
+                            />
+                            <Line
+                              type="linear"
+                              dataKey="trend"
+                              stroke="#f87171"
+                              strokeWidth={2}
+                              strokeDasharray="5 5"
+                              dot={false}
+                              name="Trend Line"
+                              connectNulls
+                            />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      </div>
+                    )
+                  })()}
 
                   {/* Cadence Trend Chart */}
-                  {weekly1KmLapsMetrics.some(w => w.metrics.avgCadence !== null) && (
-                    <div className="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
-                      <h3 className="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-50">
-                        Average Cadence Trend
-                      </h3>
-                      <ResponsiveContainer width="100%" height={300}>
-                        <LineChart data={weekly1KmLapsMetrics.map(w => ({
-                          week: w.weekLabel,
-                          cadence: w.metrics.avgCadence,
-                          count: w.metrics.count,
-                        }))}>
-                          <CartesianGrid strokeDasharray="3 3" className="stroke-gray-200 dark:stroke-gray-800" />
-                          <XAxis
-                            dataKey="week"
-                            className="text-xs text-gray-500 dark:text-gray-400"
-                            tick={{ fill: 'currentColor' }}
-                            angle={-45}
-                            textAnchor="end"
-                            height={80}
-                          />
-                          <YAxis
-                            className="text-xs text-gray-500 dark:text-gray-400"
-                            tick={{ fill: 'currentColor' }}
-                            domain={(() => {
-                              const validCadence = weekly1KmLapsMetrics
-                                .map(w => w.metrics.avgCadence)
-                                .filter((c): c is number => c !== null && c !== undefined)
-                              if (validCadence.length === 0) return ['auto', 'auto']
-                              const minCadence = Math.min(...validCadence)
-                              const maxCadence = Math.max(...validCadence)
-                              const padding = (maxCadence - minCadence) * 0.1 || 2
-                              return [Math.max(0, Math.floor((minCadence - padding) / 5) * 5), Math.ceil((maxCadence + padding) / 5) * 5]
-                            })()}
-                            label={{ 
-                              value: 'Cadence (spm)', 
-                              angle: -90, 
-                              position: 'insideLeft',
-                              style: { textAnchor: 'middle' }
-                            }}
-                          />
-                          <Tooltip
-                            content={({ active, payload }) => {
-                              if (active && payload && payload.length) {
-                                const data = payload[0].payload
-                                return (
-                                  <div className="rounded-lg border border-gray-200 bg-white p-3 shadow-lg dark:border-gray-800 dark:bg-gray-900">
-                                    <p className="font-semibold text-gray-900 dark:text-gray-50">
-                                      Week of {data.week}
-                                    </p>
-                                    {data.cadence && (
-                                      <p className="mt-1 text-sm text-blue-600 dark:text-blue-400">
-                                        Cadence: {Math.round(data.cadence)} spm
+                  {weekly1KmLapsMetrics.some(w => w.metrics.avgCadence !== null) && (() => {
+                    const chartData = weekly1KmLapsMetrics.map((w, index) => ({
+                      week: w.weekLabel,
+                      cadence: w.metrics.avgCadence,
+                      count: w.metrics.count,
+                      x: index,
+                    }))
+                    
+                    const trendData = calculateTrendLine(
+                      chartData.map(d => ({ x: d.x, y: d.cadence }))
+                    )
+                    
+                    const chartDataWithTrend = chartData.map((d, index) => ({
+                      ...d,
+                      trend: trendData[index]?.y ?? null,
+                    }))
+                    
+                    return (
+                      <div className="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
+                        <h3 className="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-50">
+                          Average Cadence Trend
+                        </h3>
+                        <ResponsiveContainer width="100%" height={300}>
+                          <LineChart data={chartDataWithTrend}>
+                            <CartesianGrid strokeDasharray="3 3" className="stroke-gray-200 dark:stroke-gray-800" />
+                            <XAxis
+                              dataKey="week"
+                              className="text-xs text-gray-500 dark:text-gray-400"
+                              tick={{ fill: 'currentColor' }}
+                              angle={-45}
+                              textAnchor="end"
+                              height={80}
+                            />
+                            <YAxis
+                              className="text-xs text-gray-500 dark:text-gray-400"
+                              tick={{ fill: 'currentColor' }}
+                              domain={(() => {
+                                const validCadence = weekly1KmLapsMetrics
+                                  .map(w => w.metrics.avgCadence)
+                                  .filter((c): c is number => c !== null && c !== undefined)
+                                if (validCadence.length === 0) return ['auto', 'auto']
+                                const minCadence = Math.min(...validCadence)
+                                const maxCadence = Math.max(...validCadence)
+                                const padding = (maxCadence - minCadence) * 0.1 || 2
+                                return [Math.max(0, Math.floor((minCadence - padding) / 5) * 5), Math.ceil((maxCadence + padding) / 5) * 5]
+                              })()}
+                              label={{ 
+                                value: 'Cadence (spm)', 
+                                angle: -90, 
+                                position: 'insideLeft',
+                                style: { textAnchor: 'middle' }
+                              }}
+                            />
+                            <Tooltip
+                              content={({ active, payload }) => {
+                                if (active && payload && payload.length) {
+                                  const data = payload[0].payload
+                                  return (
+                                    <div className="rounded-lg border border-gray-200 bg-white p-3 shadow-lg dark:border-gray-800 dark:bg-gray-900">
+                                      <p className="font-semibold text-gray-900 dark:text-gray-50">
+                                        Week of {data.week}
                                       </p>
-                                    )}
-                                    <p className="text-xs text-gray-500 dark:text-gray-400">
-                                      {data.count} laps
-                                    </p>
-                                  </div>
-                                )
-                              }
-                              return null
-                            }}
-                          />
-                          <Legend />
-                          <Line
-                            type="monotone"
-                            dataKey="cadence"
-                            stroke="#3b82f6"
-                            strokeWidth={3}
-                            dot={{ fill: '#3b82f6', r: 4 }}
-                            name="Average Cadence"
-                            connectNulls
-                          />
-                        </LineChart>
-                      </ResponsiveContainer>
-                    </div>
-                  )}
+                                      {data.cadence && (
+                                        <p className="mt-1 text-sm text-blue-600 dark:text-blue-400">
+                                          Cadence: {Math.round(data.cadence)} spm
+                                        </p>
+                                      )}
+                                      {data.trend && (
+                                        <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                          Trend: {Math.round(data.trend)} spm
+                                        </p>
+                                      )}
+                                      <p className="text-xs text-gray-500 dark:text-gray-400">
+                                        {data.count} laps
+                                      </p>
+                                    </div>
+                                  )
+                                }
+                                return null
+                              }}
+                            />
+                            <Legend />
+                            <Line
+                              type="monotone"
+                              dataKey="cadence"
+                              stroke="#3b82f6"
+                              strokeWidth={3}
+                              dot={{ fill: '#3b82f6', r: 4 }}
+                              name="Average Cadence"
+                              connectNulls
+                            />
+                            <Line
+                              type="linear"
+                              dataKey="trend"
+                              stroke="#60a5fa"
+                              strokeWidth={2}
+                              strokeDasharray="5 5"
+                              dot={false}
+                              name="Trend Line"
+                              connectNulls
+                            />
+                          </LineChart>
+                        </ResponsiveContainer>
+                      </div>
+                    )
+                  })()}
                 </div>
 
                 {/* Weekly Summary Table - Accordion */}
