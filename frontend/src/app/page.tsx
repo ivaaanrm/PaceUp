@@ -728,76 +728,83 @@ export default function DashboardPage() {
             <h2 className="mb-4 text-xl font-semibold text-gray-900 dark:text-gray-50">
               Training Statistics
             </h2>
-            <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
-              <table className="w-full">
+            <div className="overflow-hidden rounded-lg border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
+              <table className="w-full" style={{ tableLayout: 'fixed' }}>
+                <colgroup>
+                  <col style={{ width: '30%' }} />
+                  <col style={{ width: '15%' }} />
+                  <col style={{ width: '20%' }} />
+                  <col style={{ width: '20%' }} />
+                  <col style={{ width: '15%' }} />
+                </colgroup>
                 <thead className="border-b border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-900/50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900 dark:text-gray-50">
+                    <th className="px-2 py-2 text-left text-[10px] font-semibold text-gray-900 dark:text-gray-50 sm:px-4 sm:py-3 sm:text-xs">
                       Period
                     </th>
-                    <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900 dark:text-gray-50">
+                    <th className="px-1 py-2 text-left text-[10px] font-semibold text-gray-900 dark:text-gray-50 sm:px-4 sm:py-3 sm:text-xs">
                       Runs
                     </th>
-                    <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900 dark:text-gray-50">
+                    <th className="px-1 py-2 text-left text-[10px] font-semibold text-gray-900 dark:text-gray-50 sm:px-4 sm:py-3 sm:text-xs">
                       Distance
                     </th>
-                    <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900 dark:text-gray-50">
+                    <th className="px-1 py-2 text-left text-[10px] font-semibold text-gray-900 dark:text-gray-50 sm:px-4 sm:py-3 sm:text-xs">
                       Time
                     </th>
-                    <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900 dark:text-gray-50">
+                    <th className="px-1 py-2 text-left text-[10px] font-semibold text-gray-900 dark:text-gray-50 sm:px-4 sm:py-3 sm:text-xs">
                       Elevation
                     </th>
                   </tr>
                 </thead>
                 <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
                   <tr className="hover:bg-gray-50 dark:hover:bg-gray-900/50">
-                    <td className="px-6 py-4 text-sm font-medium text-gray-900 dark:text-gray-50">
+                    <td className="px-2 py-2 text-[10px] font-medium text-gray-900 dark:text-gray-50 sm:px-4 sm:py-3 sm:text-xs">
                       Last Week
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-900 dark:text-gray-50">
+                    <td className="px-1 py-2 text-[10px] text-gray-900 dark:text-gray-50 sm:px-4 sm:py-3 sm:text-xs">
                       {periodStats.lastWeek.count}
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-900 dark:text-gray-50">
+                    <td className="px-1 py-2 text-[10px] text-gray-900 dark:text-gray-50 sm:px-4 sm:py-3 sm:text-xs">
                       {formatDistance(periodStats.lastWeek.distance)}
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-900 dark:text-gray-50">
+                    <td className="px-1 py-2 text-[10px] text-gray-900 dark:text-gray-50 sm:px-4 sm:py-3 sm:text-xs">
                       {formatTime(periodStats.lastWeek.time)}
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-900 dark:text-gray-50">
+                    <td className="px-1 py-2 text-[10px] text-gray-900 dark:text-gray-50 sm:px-4 sm:py-3 sm:text-xs">
                       {Math.round(periodStats.lastWeek.elevation)} m
                     </td>
                   </tr>
                   <tr className="hover:bg-gray-50 dark:hover:bg-gray-900/50">
-                    <td className="px-6 py-4 text-sm font-medium text-gray-900 dark:text-gray-50">
+                    <td className="px-2 py-2 text-[10px] font-medium text-gray-900 dark:text-gray-50 sm:px-4 sm:py-3 sm:text-xs">
                       Last 4 Weeks
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-900 dark:text-gray-50">
+                    <td className="px-1 py-2 text-[10px] text-gray-900 dark:text-gray-50 sm:px-4 sm:py-3 sm:text-xs">
                       {periodStats.last4Weeks.count}
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-900 dark:text-gray-50">
+                    <td className="px-1 py-2 text-[10px] text-gray-900 dark:text-gray-50 sm:px-4 sm:py-3 sm:text-xs">
                       {formatDistance(periodStats.last4Weeks.distance)}
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-900 dark:text-gray-50">
+                    <td className="px-1 py-2 text-[10px] text-gray-900 dark:text-gray-50 sm:px-4 sm:py-3 sm:text-xs">
                       {formatTime(periodStats.last4Weeks.time)}
                     </td>
-                    <td className="px-6 py-4 text-sm text-gray-900 dark:text-gray-50">
+                    <td className="px-1 py-2 text-[10px] text-gray-900 dark:text-gray-50 sm:px-4 sm:py-3 sm:text-xs">
                       {Math.round(periodStats.last4Weeks.elevation)} m
                     </td>
                   </tr>
                   <tr className="bg-orange-50 hover:bg-orange-100 dark:bg-orange-950/30 dark:hover:bg-orange-950/50">
-                    <td className="px-6 py-4 text-sm font-semibold text-gray-900 dark:text-gray-50">
+                    <td className="px-2 py-2 text-[10px] font-semibold text-gray-900 dark:text-gray-50 sm:px-4 sm:py-3 sm:text-xs">
                       Since Sept 1, 2025
                     </td>
-                    <td className="px-6 py-4 text-sm font-semibold text-gray-900 dark:text-gray-50">
+                    <td className="px-1 py-2 text-[10px] font-semibold text-gray-900 dark:text-gray-50 sm:px-4 sm:py-3 sm:text-xs">
                       {periodStats.sinceStart.count}
                     </td>
-                    <td className="px-6 py-4 text-sm font-semibold text-gray-900 dark:text-gray-50">
+                    <td className="px-1 py-2 text-[10px] font-semibold text-gray-900 dark:text-gray-50 sm:px-4 sm:py-3 sm:text-xs">
                       {formatDistance(periodStats.sinceStart.distance)}
                     </td>
-                    <td className="px-6 py-4 text-sm font-semibold text-gray-900 dark:text-gray-50">
+                    <td className="px-1 py-2 text-[10px] font-semibold text-gray-900 dark:text-gray-50 sm:px-4 sm:py-3 sm:text-xs">
                       {formatTime(periodStats.sinceStart.time)}
                     </td>
-                    <td className="px-6 py-4 text-sm font-semibold text-gray-900 dark:text-gray-50">
+                    <td className="px-1 py-2 text-[10px] font-semibold text-gray-900 dark:text-gray-50 sm:px-4 sm:py-3 sm:text-xs">
                       {Math.round(periodStats.sinceStart.elevation)} m
                     </td>
                   </tr>
@@ -813,20 +820,26 @@ export default function DashboardPage() {
             <h2 className="mb-4 text-xl font-semibold text-gray-900 dark:text-gray-50">
               Personal Bests (Since Sept 1, 2025)
             </h2>
-            <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
-              <table className="w-full">
+            <div className="overflow-hidden rounded-lg border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
+              <table className="w-full" style={{ tableLayout: 'fixed' }}>
+                <colgroup>
+                  <col style={{ width: '25%' }} />
+                  <col style={{ width: '25%' }} />
+                  <col style={{ width: '25%' }} />
+                  <col style={{ width: '25%' }} />
+                </colgroup>
                 <thead className="border-b border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-900/50">
                   <tr>
-                    <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900 dark:text-gray-50">
+                    <th className="px-2 py-2 text-left text-[10px] font-semibold text-gray-900 dark:text-gray-50 sm:px-4 sm:py-3 sm:text-xs">
                       Distance
                     </th>
-                    <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900 dark:text-gray-50">
+                    <th className="px-1 py-2 text-left text-[10px] font-semibold text-gray-900 dark:text-gray-50 sm:px-4 sm:py-3 sm:text-xs">
                       Time
                     </th>
-                    <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900 dark:text-gray-50">
+                    <th className="px-1 py-2 text-left text-[10px] font-semibold text-gray-900 dark:text-gray-50 sm:px-4 sm:py-3 sm:text-xs">
                       Pace
                     </th>
-                    <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900 dark:text-gray-50">
+                    <th className="px-1 py-2 text-left text-[10px] font-semibold text-gray-900 dark:text-gray-50 sm:px-4 sm:py-3 sm:text-xs">
                       Date
                     </th>
                   </tr>
@@ -840,24 +853,24 @@ export default function DashboardPage() {
                         : 'hover:bg-gray-50 dark:hover:bg-gray-900/50'
                       }
                     >
-                      <td className="px-6 py-4 text-sm font-medium text-gray-900 dark:text-gray-50">
+                      <td className="px-2 py-2 text-[10px] font-medium text-gray-900 dark:text-gray-50 sm:px-4 sm:py-3 sm:text-xs">
                         {pb.distance}
                       </td>
-                      <td className={`px-6 py-4 text-sm ${
+                      <td className={`px-1 py-2 text-[10px] sm:px-4 sm:py-3 sm:text-xs ${
                         pb.time 
                           ? 'font-semibold text-gray-900 dark:text-gray-50' 
                           : 'text-gray-400 dark:text-gray-600'
                       }`}>
                         {pb.time ? formatTime(pb.time) : 'No data'}
                       </td>
-                      <td className={`px-6 py-4 text-sm ${
+                      <td className={`px-1 py-2 text-[10px] sm:px-4 sm:py-3 sm:text-xs ${
                         pb.time 
                           ? 'text-green-600 dark:text-green-400' 
                           : 'text-gray-400 dark:text-gray-600'
                       }`}>
                         {pb.time ? `${formatPaceFromMinPerKm(pb.pace)} /km` : '-'}
                       </td>
-                      <td className="px-6 py-4 text-sm text-gray-600 dark:text-gray-400">
+                      <td className="px-1 py-2 text-[10px] text-gray-600 dark:text-gray-400 sm:px-4 sm:py-3 sm:text-xs">
                         {pb.date ? new Date(pb.date).toLocaleDateString('en-US', {
                           month: 'short',
                           day: 'numeric',
