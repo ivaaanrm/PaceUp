@@ -1,13 +1,11 @@
 "use client"
 
 import { useEffect, useState, useMemo } from "react"
-import { stravaAPI, type Athlete, type Activity, type LapWithActivity } from "@/lib/api"
+import { useRouter } from "next/navigation"
+import { stravaAPI, trainingPlanAPI, type Athlete, type Activity, type LapWithActivity } from "@/lib/api"
 import { Button } from "@/components/Button"
 import { Input } from "@/components/Input"
-import { RiRefreshLine, RiRunLine, RiCalendarLine, RiArrowUpLine, RiArrowDownLine, RiEditLine, RiCheckLine, RiCloseLine } from "@remixicon/react"
-import { LapPaceChart } from "@/components/LapPaceChart"
-import { LapHeartRateChart } from "@/components/LapHeartRateChart"
-import { BarChart } from "@/components/BarChart"
+import { RiRefreshLine, RiRunLine, RiCalendarLine, RiArrowUpLine, RiArrowDownLine, RiEditLine, RiCheckLine, RiCloseLine, RiArrowRightLine } from "@remixicon/react"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/Accordion"
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts"
 import { useAuth } from "@/contexts/AuthContext"
@@ -166,6 +164,154 @@ function RaceCountdown() {
                 </button>
               </div>
             )}
+          </div>
+        </div>
+      </div>
+    </div>
+  )
+}
+
+interface NextActivity {
+  week: number
+  day: string
+  activityType: string
+  details: string
+}
+
+function NextTrainingActivity() {
+  const router = useRouter()
+  const [nextActivity, setNextActivity] = useState<NextActivity | null>(null)
+  const [loading, setLoading] = useState(true)
+
+  useEffect(() => {
+    loadNextActivity()
+  }, [])
+
+  const loadNextActivity = async () => {
+    try {
+      setLoading(true)
+      const plan = await trainingPlanAPI.getLatestPlan()
+      
+      if (!plan) {
+        setNextActivity(null)
+        return
+      }
+
+      // Get completions to find the next incomplete activity
+      const completions = await trainingPlanAPI.getPlanCompletions(plan.id)
+      
+      // Find the first incomplete activity
+      const planData = plan.training_plan_json.training_plan
+      for (const week of planData) {
+        for (let dayIdx = 0; dayIdx < week.days.length; dayIdx++) {
+          const day = week.days[dayIdx]
+          const isCompleted = completions.some(
+            c => c.week_number === week.week && 
+                 c.day === day.day && 
+                 c.activity_index === dayIdx && 
+                 c.is_completed
+          )
+          
+          if (!isCompleted) {
+            setNextActivity({
+              week: week.week,
+              day: day.day,
+              activityType: day.activity_type,
+              details: day.details,
+            })
+            return
+          }
+        }
+      }
+      
+      // All activities are completed
+      setNextActivity(null)
+    } catch (err) {
+      console.error('Error loading next training activity:', err)
+      setNextActivity(null)
+    } finally {
+      setLoading(false)
+    }
+  }
+
+  const handleClick = () => {
+    router.push('/training')
+  }
+
+  if (loading) {
+    return (
+      <div className="rounded-lg border border-blue-300 bg-gradient-to-br from-blue-50 to-blue-100 p-4 dark:from-blue-950/30 dark:to-blue-900/20 dark:border-blue-600">
+        <div className="flex items-center gap-3">
+          <div className="flex-shrink-0 rounded-full bg-blue-500 p-2">
+            <RiRunLine className="h-4 w-4 text-white animate-pulse" />
+          </div>
+          <div className="flex-1">
+            <p className="text-sm text-gray-600 dark:text-gray-400">Loading...</p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  if (!nextActivity) {
+    return (
+      <div className="rounded-lg border border-blue-300 bg-gradient-to-br from-blue-50 to-blue-100 p-4 dark:from-blue-950/30 dark:to-blue-900/20 dark:border-blue-600">
+        <div className="flex items-center gap-3">
+          <div className="flex-shrink-0 rounded-full bg-blue-500 p-2">
+            <RiRunLine className="h-4 w-4 text-white" />
+          </div>
+          <div className="flex-1">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-50">
+              Next Training Activity
+            </h2>
+            <p className="text-xs text-gray-600 dark:text-gray-400">
+              No upcoming activities
+            </p>
+          </div>
+        </div>
+      </div>
+    )
+  }
+
+  return (
+    <div 
+      className="rounded-lg border border-blue-300 bg-gradient-to-br from-blue-50 to-blue-100 p-4 dark:from-blue-950/30 dark:to-blue-900/20 dark:border-blue-600 cursor-pointer hover:from-blue-100 hover:to-blue-200 dark:hover:from-blue-950/50 dark:hover:to-blue-900/40 transition-colors"
+      onClick={handleClick}
+    >
+      <div className="flex flex-col gap-4 sm:flex-row sm:items-center sm:justify-between">
+        <div className="flex items-center gap-3 flex-1 min-w-0">
+          <div className="flex-shrink-0 rounded-full bg-blue-500 p-2">
+            <RiRunLine className="h-4 w-4 text-white" />
+          </div>
+          <div className="flex-1 min-w-0">
+            <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-50 truncate">
+              Next Training Activity
+            </h2>
+            <p className="text-xs text-gray-600 dark:text-gray-400 truncate">
+              Week {nextActivity.week} • {nextActivity.day}
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-4 flex-wrap">
+          <div className="flex-1 min-w-0 sm:flex-initial">
+            <p className="text-xs font-medium text-gray-600 dark:text-gray-400">
+              {nextActivity.activityType}
+            </p>
+            <p className="text-sm font-semibold text-gray-900 dark:text-gray-50 line-clamp-2">
+              {nextActivity.details}
+            </p>
+          </div>
+          <div className="flex items-center gap-2 border-t border-blue-300 dark:border-blue-600 pt-3 sm:border-t-0 sm:border-l sm:pl-4 sm:pt-0">
+            <button
+              onClick={(e) => {
+                e.stopPropagation()
+                handleClick()
+              }}
+              className="flex items-center gap-1 text-blue-600 hover:text-blue-700 dark:text-blue-400 dark:hover:text-blue-300 font-medium text-sm"
+            >
+              View Plan
+              <RiArrowRightLine className="h-4 w-4" />
+            </button>
           </div>
         </div>
       </div>
@@ -542,9 +688,10 @@ export default function DashboardPage() {
         </Button>
       </div>
 
-      {/* Race Countdown */}
-      <div className="mb-8">
+      {/* Race Countdown and Next Training Activity - Two columns on desktop */}
+      <div className="mb-8 grid grid-cols-1 gap-6 lg:grid-cols-2">
         <RaceCountdown />
+        <NextTrainingActivity />
       </div>
 
       {/* Training Statistics and Personal Bests - Two columns on desktop */}
@@ -703,7 +850,7 @@ export default function DashboardPage() {
       {/* 4-Week Comparison: 1km Laps - Accordion */}
       {laps.length > 0 && (fourWeekComparison.last4Weeks.count > 0 || fourWeekComparison.previous4Weeks.count > 0) && (
         <div className="mb-8">
-          <Accordion type="single" collapsible className="rounded-lg border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
+          <Accordion type="single" collapsible defaultValue="comparison" className="rounded-lg border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
             <AccordionItem value="comparison">
               <AccordionTrigger className="px-6">
                 <div className="flex items-center gap-3">
@@ -874,90 +1021,6 @@ export default function DashboardPage() {
                     </div>
                   ) : null}
                 </div>
-
-                {/* Comparison Charts */}
-                {fourWeekComparison.last4Weeks.avgPace && fourWeekComparison.previous4Weeks.avgPace && (
-                  <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-                    {/* Pace Comparison Chart */}
-                    <div className="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
-                      <h3 className="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-50">
-                        Average Pace Comparison
-                      </h3>
-                      <BarChart
-                        data={[
-                          {
-                            period: "Previous 4 Weeks",
-                            "Pace (min/km)": Math.round(fourWeekComparison.previous4Weeks.avgPace * 100) / 100,
-                          },
-                          {
-                            period: "Last 4 Weeks",
-                            "Pace (min/km)": Math.round(fourWeekComparison.last4Weeks.avgPace * 100) / 100,
-                          },
-                        ]}
-                        index="period"
-                        categories={["Pace (min/km)"]}
-                        colors={["blue", "orange"]}
-                        valueFormatter={(value) => formatPaceFromMinPerKm(value)}
-                        yAxisLabel="Pace (min/km)"
-                        showLegend={false}
-                      />
-                    </div>
-
-                    {/* Heart Rate Comparison Chart */}
-                    {fourWeekComparison.last4Weeks.avgHeartRate && fourWeekComparison.previous4Weeks.avgHeartRate && (
-                      <div className="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
-                        <h3 className="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-50">
-                          Average Heart Rate Comparison
-                        </h3>
-                        <BarChart
-                          data={[
-                            {
-                              period: "Previous 4 Weeks",
-                              "Heart Rate (bpm)": Math.round(fourWeekComparison.previous4Weeks.avgHeartRate),
-                            },
-                            {
-                              period: "Last 4 Weeks",
-                              "Heart Rate (bpm)": Math.round(fourWeekComparison.last4Weeks.avgHeartRate),
-                            },
-                          ]}
-                          index="period"
-                          categories={["Heart Rate (bpm)"]}
-                          colors={["blue", "orange"]}
-                          valueFormatter={(value) => `${Math.round(value)} bpm`}
-                          yAxisLabel="Heart Rate (bpm)"
-                          showLegend={false}
-                        />
-                      </div>
-                    )}
-
-                    {/* Cadence Comparison Chart */}
-                    {fourWeekComparison.last4Weeks.avgCadence && fourWeekComparison.previous4Weeks.avgCadence && (
-                      <div className="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
-                        <h3 className="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-50">
-                          Average Cadence Comparison
-                        </h3>
-                        <BarChart
-                          data={[
-                            {
-                              period: "Previous 4 Weeks",
-                              "Cadence (spm)": Math.round(fourWeekComparison.previous4Weeks.avgCadence),
-                            },
-                            {
-                              period: "Last 4 Weeks",
-                              "Cadence (spm)": Math.round(fourWeekComparison.last4Weeks.avgCadence),
-                            },
-                          ]}
-                          index="period"
-                          categories={["Cadence (spm)"]}
-                          colors={["blue", "orange"]}
-                          valueFormatter={(value) => `${Math.round(value)} spm`}
-                          yAxisLabel="Cadence (spm)"
-                          showLegend={false}
-                        />
-                      </div>
-                    )}
-                  </div>
-                )}
               </AccordionContent>
             </AccordionItem>
           </Accordion>
@@ -967,7 +1030,7 @@ export default function DashboardPage() {
       {/* 10-Week Trend: 1km Laps - Accordion */}
       {laps.length > 0 && weekly1KmLapsMetrics.some(w => w.metrics.count > 0) && (
         <div className="mb-8">
-          <Accordion type="single" collapsible className="rounded-lg border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
+          <Accordion type="single" collapsible defaultValue="weekly-trend" className="rounded-lg border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
             <AccordionItem value="weekly-trend">
               <AccordionTrigger className="px-6">
                 <div className="flex items-center gap-3">
@@ -1226,55 +1289,63 @@ export default function DashboardPage() {
                   )}
                 </div>
 
-                {/* Weekly Summary Table */}
+                {/* Weekly Summary Table - Accordion */}
                 <div className="mt-6">
-                  <h3 className="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-50">
-                    Weekly Summary
-                  </h3>
-                  <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
-                    <table className="w-full">
-                      <thead className="border-b border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-900/50">
-                        <tr>
-                          <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900 dark:text-gray-50">
-                            Week
-                          </th>
-                          <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900 dark:text-gray-50">
-                            Laps
-                          </th>
-                          <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900 dark:text-gray-50">
-                            Avg Pace
-                          </th>
-                          <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900 dark:text-gray-50">
-                            Avg HR
-                          </th>
-                          <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900 dark:text-gray-50">
-                            Avg Cadence
-                          </th>
-                        </tr>
-                      </thead>
-                      <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
-                        {weekly1KmLapsMetrics.map((week, index) => (
-                          <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-900/50">
-                            <td className="px-6 py-4 text-sm font-medium text-gray-900 dark:text-gray-50">
-                              {week.weekLabel}
-                            </td>
-                            <td className="px-6 py-4 text-sm text-gray-900 dark:text-gray-50">
-                              {week.metrics.count}
-                            </td>
-                            <td className="px-6 py-4 text-sm text-gray-900 dark:text-gray-50">
-                              {week.metrics.avgPace ? formatPaceFromMinPerKm(week.metrics.avgPace) : '-'}
-                            </td>
-                            <td className="px-6 py-4 text-sm text-gray-900 dark:text-gray-50">
-                              {week.metrics.avgHeartRate ? `${Math.round(week.metrics.avgHeartRate)} bpm` : '-'}
-                            </td>
-                            <td className="px-6 py-4 text-sm text-gray-900 dark:text-gray-50">
-                              {week.metrics.avgCadence ? `${Math.round(week.metrics.avgCadence)} spm` : '-'}
-                            </td>
-                          </tr>
-                        ))}
-                      </tbody>
-                    </table>
-                  </div>
+                  <Accordion type="single" collapsible className="rounded-lg border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
+                    <AccordionItem value="weekly-summary">
+                      <AccordionTrigger className="px-6">
+                        <h3 className="text-lg font-semibold text-gray-900 dark:text-gray-50">
+                          Weekly Summary
+                        </h3>
+                      </AccordionTrigger>
+                      <AccordionContent className="px-6">
+                        <div className="overflow-x-auto rounded-lg border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
+                          <table className="w-full">
+                            <thead className="border-b border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-900/50">
+                              <tr>
+                                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900 dark:text-gray-50">
+                                  Week
+                                </th>
+                                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900 dark:text-gray-50">
+                                  Laps
+                                </th>
+                                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900 dark:text-gray-50">
+                                  Avg Pace
+                                </th>
+                                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900 dark:text-gray-50">
+                                  Avg HR
+                                </th>
+                                <th className="px-6 py-3 text-left text-sm font-semibold text-gray-900 dark:text-gray-50">
+                                  Avg Cadence
+                                </th>
+                              </tr>
+                            </thead>
+                            <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
+                              {weekly1KmLapsMetrics.map((week, index) => (
+                                <tr key={index} className="hover:bg-gray-50 dark:hover:bg-gray-900/50">
+                                  <td className="px-6 py-4 text-sm font-medium text-gray-900 dark:text-gray-50">
+                                    {week.weekLabel}
+                                  </td>
+                                  <td className="px-6 py-4 text-sm text-gray-900 dark:text-gray-50">
+                                    {week.metrics.count}
+                                  </td>
+                                  <td className="px-6 py-4 text-sm text-gray-900 dark:text-gray-50">
+                                    {week.metrics.avgPace ? formatPaceFromMinPerKm(week.metrics.avgPace) : '-'}
+                                  </td>
+                                  <td className="px-6 py-4 text-sm text-gray-900 dark:text-gray-50">
+                                    {week.metrics.avgHeartRate ? `${Math.round(week.metrics.avgHeartRate)} bpm` : '-'}
+                                  </td>
+                                  <td className="px-6 py-4 text-sm text-gray-900 dark:text-gray-50">
+                                    {week.metrics.avgCadence ? `${Math.round(week.metrics.avgCadence)} spm` : '-'}
+                                  </td>
+                                </tr>
+                              ))}
+                            </tbody>
+                          </table>
+                        </div>
+                      </AccordionContent>
+                    </AccordionItem>
+                  </Accordion>
                 </div>
               </AccordionContent>
             </AccordionItem>
@@ -1282,40 +1353,6 @@ export default function DashboardPage() {
         </div>
       )}
 
-      {/* Charts - Accordions */}
-      <div className="mb-8 space-y-4">
-        {/* Lap Pace Over Time - Accordion */}
-        {laps.length > 0 && (
-          <Accordion type="single" collapsible className="rounded-lg border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
-            <AccordionItem value="lap-pace">
-              <AccordionTrigger className="px-6">
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-50">
-                  Lap Pace Over Time
-                </h2>
-              </AccordionTrigger>
-              <AccordionContent className="px-6">
-                <LapPaceChart laps={laps} />
-              </AccordionContent>
-            </AccordionItem>
-          </Accordion>
-        )}
-
-        {/* Lap Heart Rate Over Time - Accordion */}
-        {laps.length > 0 && (
-          <Accordion type="single" collapsible className="rounded-lg border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
-            <AccordionItem value="lap-heartrate">
-              <AccordionTrigger className="px-6">
-                <h2 className="text-xl font-semibold text-gray-900 dark:text-gray-50">
-                  Lap Heart Rate Over Time
-                </h2>
-              </AccordionTrigger>
-              <AccordionContent className="px-6">
-                <LapHeartRateChart laps={laps} />
-              </AccordionContent>
-            </AccordionItem>
-          </Accordion>
-        )}
-      </div>
 
       {/* Empty State */}
       {activities.length === 0 && (
