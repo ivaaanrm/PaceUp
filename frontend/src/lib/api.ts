@@ -295,7 +295,9 @@ export interface TrainingPlanGeneratedResponse {
 export interface TrainingPlanRequest {
   distance_objective: string
   pace_or_time_objective: string
-  personal_record?: string
+  personal_record_distance?: string
+  personal_record_time?: number
+  longest_run_4weeks?: number
   weekly_kms?: number
   plan_duration_weeks: number
   training_days: string[]

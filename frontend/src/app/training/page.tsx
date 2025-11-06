@@ -4,6 +4,7 @@ import { useEffect, useState, useMemo } from "react"
 import { trainingPlanAPI, stravaAPI, type TrainingPlan, type TrainingPlanRequest, type Athlete, type ActivityCompletion, type PlanProgress } from "@/lib/api"
 import { Button } from "@/components/Button"
 import { Input } from "@/components/Input"
+import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/Select"
 import { RiRunLine, RiArrowRightLine, RiArrowLeftLine, RiLoader2Fill, RiCheckLine, RiCalendarCheckLine, RiDeleteBinLine, RiAddLine } from "@remixicon/react"
 import { useAuth } from "@/contexts/AuthContext"
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/Accordion"
@@ -22,8 +23,11 @@ export default function TrainingPlanPage() {
   // Form state - Step 1
   const [distanceObjective, setDistanceObjective] = useState("")
   const [paceOrTimeObjective, setPaceOrTimeObjective] = useState("")
-  const [personalRecord, setPersonalRecord] = useState("")
+  const [personalRecordDistance, setPersonalRecordDistance] = useState("")
+  const [personalRecordTime, setPersonalRecordTime] = useState("")
+  const [longestRun4Weeks, setLongestRun4Weeks] = useState("")
   const [weeklyKms, setWeeklyKms] = useState("")
+  const [activities, setActivities] = useState<any[]>([])
   
   // Form state - Step 2
   const [planDurationWeeks, setPlanDurationWeeks] = useState("10")
@@ -46,12 +50,30 @@ export default function TrainingPlanPage() {
     try {
       setLoading(true)
       setError(null)
-      const [athleteData, planData] = await Promise.all([
+      const [athleteData, planData, activitiesData] = await Promise.all([
         stravaAPI.getAthlete().catch(() => null),
         trainingPlanAPI.getLatestPlan().catch(() => null),
+        stravaAPI.getActivities(200).catch(() => []),
       ])
       setAthlete(athleteData)
       setLatestPlan(planData)
+      setActivities(activitiesData)
+      
+      // Calculate longest run in last 4 weeks
+      if (activitiesData.length > 0) {
+        const fourWeeksAgo = new Date()
+        fourWeeksAgo.setDate(fourWeeksAgo.getDate() - 28)
+        const recentActivities = activitiesData.filter(a => 
+          new Date(a.start_date) >= fourWeeksAgo
+        )
+        if (recentActivities.length > 0) {
+          const longest = recentActivities.reduce((max, a) => 
+            a.distance > max.distance ? a : max, recentActivities[0]
+          )
+          setLongestRun4Weeks((longest.distance / 1000).toFixed(1))
+        }
+      }
+      
       // If a plan exists, load it directly and skip the form
       if (planData) {
         setGeneratedPlan(planData)
@@ -111,7 +133,9 @@ export default function TrainingPlanPage() {
       const request: TrainingPlanRequest = {
         distance_objective: distanceObjective,
         pace_or_time_objective: paceOrTimeObjective,
-        personal_record: personalRecord || undefined,
+        personal_record_distance: personalRecordDistance || undefined,
+        personal_record_time: personalRecordTime ? parseFloat(personalRecordTime) : undefined,
+        longest_run_4weeks: longestRun4Weeks ? parseFloat(longestRun4Weeks) : undefined,
         weekly_kms: weeklyKms ? parseFloat(weeklyKms) : undefined,
         plan_duration_weeks: parseInt(planDurationWeeks),
         training_days: selectedDays,
@@ -140,7 +164,9 @@ export default function TrainingPlanPage() {
     setProgress(null)
     setDistanceObjective("")
     setPaceOrTimeObjective("")
-    setPersonalRecord("")
+    setPersonalRecordDistance("")
+    setPersonalRecordTime("")
+    setLongestRun4Weeks("")
     setWeeklyKms("")
     setPlanDurationWeeks("10")
     setSelectedDays([])
@@ -241,7 +267,9 @@ export default function TrainingPlanPage() {
       // Reset form
       setDistanceObjective("")
       setPaceOrTimeObjective("")
-      setPersonalRecord("")
+      setPersonalRecordDistance("")
+      setPersonalRecordTime("")
+      setLongestRun4Weeks("")
       setWeeklyKms("")
       setPlanDurationWeeks("10")
       setSelectedDays([])
@@ -335,9 +363,22 @@ export default function TrainingPlanPage() {
                   <h3 className="text-lg font-semibold">Insights on the Objective</h3>
                 </AccordionTrigger>
                 <AccordionContent>
-                  <p className="text-gray-700 dark:text-gray-300 whitespace-pre-line leading-relaxed">
-                    {generatedPlan.insights}
-                  </p>
+                  <div className="text-gray-700 dark:text-gray-300">
+                    {generatedPlan.insights.split('\n').map((line, idx) => {
+                      const trimmedLine = line.trim()
+                      if (!trimmedLine) return null
+                      // Check if line starts with bullet point indicators
+                      if (trimmedLine.match(/^[-•*]\s/) || trimmedLine.startsWith('•')) {
+                        return (
+                          <div key={idx} className="flex items-start mb-2">
+                            <span className="mr-2">•</span>
+                            <span>{trimmedLine.replace(/^[-•*]\s*/, '')}</span>
+                          </div>
+                        )
+                      }
+                      return <p key={idx} className="mb-2">{trimmedLine}</p>
+                    })}
+                  </div>
                 </AccordionContent>
               </AccordionItem>
               
@@ -346,9 +387,22 @@ export default function TrainingPlanPage() {
                   <h3 className="text-lg font-semibold">Summary of the Plan</h3>
                 </AccordionTrigger>
                 <AccordionContent>
-                  <p className="text-gray-700 dark:text-gray-300 whitespace-pre-line leading-relaxed">
-                    {generatedPlan.summary}
-                  </p>
+                  <div className="text-gray-700 dark:text-gray-300">
+                    {generatedPlan.summary.split('\n').map((line, idx) => {
+                      const trimmedLine = line.trim()
+                      if (!trimmedLine) return null
+                      // Check if line starts with bullet point indicators
+                      if (trimmedLine.match(/^[-•*]\s/) || trimmedLine.startsWith('•')) {
+                        return (
+                          <div key={idx} className="flex items-start mb-2">
+                            <span className="mr-2">•</span>
+                            <span>{trimmedLine.replace(/^[-•*]\s*/, '')}</span>
+                          </div>
+                        )
+                      }
+                      return <p key={idx} className="mb-2">{trimmedLine}</p>
+                    })}
+                  </div>
                 </AccordionContent>
               </AccordionItem>
             </Accordion>
@@ -446,11 +500,19 @@ export default function TrainingPlanPage() {
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
                       Distance Objective <span className="text-red-500">*</span>
                     </label>
-                    <Input
-                      placeholder="e.g., 10km, Half Marathon, Marathon"
-                      value={distanceObjective}
-                      onChange={(e) => setDistanceObjective(e.target.value)}
-                    />
+                    <Select value={distanceObjective} onValueChange={setDistanceObjective}>
+                      <SelectTrigger>
+                        <SelectValue placeholder="Select distance objective" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="5km">5km</SelectItem>
+                        <SelectItem value="10km">10km</SelectItem>
+                        <SelectItem value="15km">15km</SelectItem>
+                        <SelectItem value="Half Marathon">Half Marathon</SelectItem>
+                        <SelectItem value="Marathon">Marathon</SelectItem>
+                        <SelectItem value="Ultra Marathon">Ultra Marathon</SelectItem>
+                      </SelectContent>
+                    </Select>
                   </div>
 
                   <div>
@@ -464,15 +526,52 @@ export default function TrainingPlanPage() {
                     />
                   </div>
 
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Personal Record Distance (Optional)
+                      </label>
+                      <Select value={personalRecordDistance} onValueChange={setPersonalRecordDistance}>
+                        <SelectTrigger>
+                          <SelectValue placeholder="Select distance" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="5km">5km</SelectItem>
+                          <SelectItem value="10km">10km</SelectItem>
+                          <SelectItem value="15km">15km</SelectItem>
+                          <SelectItem value="Half Marathon">Half Marathon</SelectItem>
+                          <SelectItem value="Marathon">Marathon</SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
+                        Personal Record Time/Pace (Optional)
+                      </label>
+                      <Input
+                        type="number"
+                        step="0.01"
+                        placeholder="e.g., 39.5 (minutes) or 4.5 (min/km)"
+                        value={personalRecordTime}
+                        onChange={(e) => setPersonalRecordTime(e.target.value)}
+                      />
+                    </div>
+                  </div>
+
                   <div>
                     <label className="block text-sm font-medium text-gray-700 dark:text-gray-300 mb-2">
-                      Personal Record (Optional)
+                      Longest Run in Last 4 Weeks (Optional)
                     </label>
                     <Input
-                      placeholder="e.g., 39:42 in 10km"
-                      value={personalRecord}
-                      onChange={(e) => setPersonalRecord(e.target.value)}
+                      type="number"
+                      step="0.1"
+                      placeholder="e.g., 15.5"
+                      value={longestRun4Weeks}
+                      onChange={(e) => setLongestRun4Weeks(e.target.value)}
                     />
+                    <p className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                      {longestRun4Weeks ? `${longestRun4Weeks} km` : 'Automatically calculated from your activities'}
+                    </p>
                   </div>
 
                   <div>
@@ -586,7 +685,10 @@ export default function TrainingPlanPage() {
                   <h3 className="text-sm font-semibold mb-2">Plan Summary</h3>
                   <ul className="space-y-1 text-sm text-gray-600 dark:text-gray-400">
                     <li><strong>Goal:</strong> {distanceObjective} - {paceOrTimeObjective}</li>
-                    {personalRecord && <li><strong>PR:</strong> {personalRecord}</li>}
+                    {personalRecordDistance && personalRecordTime && (
+                      <li><strong>PR:</strong> {personalRecordDistance} in {personalRecordTime}</li>
+                    )}
+                    {longestRun4Weeks && <li><strong>Longest Run (4 weeks):</strong> {longestRun4Weeks} km</li>}
                     {weeklyKms && <li><strong>Weekly Volume:</strong> {weeklyKms} km</li>}
                     <li><strong>Duration:</strong> {planDurationWeeks} weeks</li>
                     <li><strong>Training Days:</strong> {selectedDays.join(", ")}</li>
