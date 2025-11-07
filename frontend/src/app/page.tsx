@@ -1087,7 +1087,7 @@ export default function DashboardPage() {
                 </p>
 
                 {/* Weekly Trend Charts */}
-                <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+                <div className="grid grid-cols-1 gap-4 lg:grid-cols-3">
                   {/* Pace Trend Chart */}
                   {weekly1KmLapsMetrics.some(w => w.metrics.avgPace !== null) && (() => {
                     const chartData = weekly1KmLapsMetrics.map((w, index) => ({
@@ -1107,11 +1107,11 @@ export default function DashboardPage() {
                     }))
                     
                     return (
-                      <div className="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
+                      <div className="rounded-xl bg-white p-6 shadow-sm dark:bg-gray-900">
                         <h3 className="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-50">
                           Average Pace Trend
                         </h3>
-                        <ResponsiveContainer width="100%" height={300}>
+                        <ResponsiveContainer width="100%" height={340}>
                           <LineChart data={chartDataWithTrend}>
                             <CartesianGrid strokeDasharray="3 3" className="stroke-gray-200 dark:stroke-gray-800" />
                             <XAxis
@@ -1217,11 +1217,11 @@ export default function DashboardPage() {
                     }))
                     
                     return (
-                      <div className="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
+                      <div className="rounded-xl bg-white p-6 shadow-sm dark:bg-gray-900">
                         <h3 className="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-50">
                           Average Heart Rate Trend
                         </h3>
-                        <ResponsiveContainer width="100%" height={300}>
+                        <ResponsiveContainer width="100%" height={340}>
                           <LineChart data={chartDataWithTrend}>
                             <CartesianGrid strokeDasharray="3 3" className="stroke-gray-200 dark:stroke-gray-800" />
                             <XAxis
@@ -1325,11 +1325,11 @@ export default function DashboardPage() {
                     }))
                     
                     return (
-                      <div className="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
+                      <div className="rounded-xl bg-white p-6 shadow-sm dark:bg-gray-900">
                         <h3 className="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-50">
                           Average Cadence Trend
                         </h3>
-                        <ResponsiveContainer width="100%" height={300}>
+                        <ResponsiveContainer width="100%" height={340}>
                           <LineChart data={chartDataWithTrend}>
                             <CartesianGrid strokeDasharray="3 3" className="stroke-gray-200 dark:stroke-gray-800" />
                             <XAxis
