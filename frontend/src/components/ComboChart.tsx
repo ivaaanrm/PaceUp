@@ -601,6 +601,7 @@ interface ComboChartProps extends React.HTMLAttributes<HTMLDivElement> {
   }
   lineSeries?: ChartSeries & {
     connectNulls?: boolean
+    strokeWidth?: number
   }
 }
 
@@ -624,6 +625,7 @@ const ComboChart = React.forwardRef<HTMLDivElement, ComboChartProps>(
     const defaultLineSeries = {
       ...defaultSeries,
       connectNulls: false,
+      strokeWidth: 2,
     }
 
     const {
@@ -1153,7 +1155,7 @@ const ComboChart = React.forwardRef<HTMLDivElement, ComboChartProps>(
                 type="linear"
                 dataKey={category}
                 stroke=""
-                strokeWidth={2}
+                strokeWidth={mergedLineSeries.strokeWidth ?? 2}
                 strokeLinejoin="round"
                 strokeLinecap="round"
                 isAnimationActive={false}

@@ -4,7 +4,7 @@ import { useEffect, useState, useMemo } from "react"
 import { useRouter } from "next/navigation"
 import { stravaAPI, type Activity, formatDistance, formatDuration, formatPace, formatDate } from "@/lib/api"
 import { Button } from "@/components/Button"
-import { BarChart } from "@/components/BarChart"
+import { ComboChart } from "@/components/ComboChart"
 import { ActivityChartTooltip } from "@/components/CustomTooltips"
 import { Table, TableBody, TableCell, TableHead, TableHeaderCell, TableRow, TableRoot } from "@/components/Table"
 import { RiRefreshLine, RiRunLine, RiArrowRightLine, RiArrowUpSLine, RiArrowDownSLine, RiArrowUpDownLine } from "@remixicon/react"
@@ -92,8 +92,22 @@ export default function ActivitiesPage() {
   }, [activities, sortColumn, sortDirection])
 
   // Transform activities data for chart
+  const formatPaceValue = (value: number | null | undefined) => {
+    if (typeof value !== 'number' || !isFinite(value)) {
+      return '-'
+    }
+    const minutes = Math.floor(value)
+    const seconds = Math.round((value - minutes) * 60)
+    return `${minutes}:${seconds.toString().padStart(2, '0')} /km`
+  }
+
+  const runActivities = useMemo(
+    () => activities.filter((activity) => activity.sport_type === "Run"),
+    [activities],
+  )
+
   const chartData = useMemo(() => {
-    return activities
+    return [...runActivities]
       .sort((a, b) => new Date(a.start_date).getTime() - new Date(b.start_date).getTime())
       .map((activity) => {
         const date = new Date(activity.start_date)
@@ -101,16 +115,22 @@ export default function ActivitiesPage() {
           month: 'short', 
           day: 'numeric' 
         })
+
+        const averagePaceMinutes = activity.average_speed
+          ? (1000 / activity.average_speed) / 60
+          : null
         
         return {
           date: dateStr,
           "Distance (km)": activity.distance / 1000,
+          "Average Pace (min/km)": averagePaceMinutes,
           distance: activity.distance,
           average_speed: activity.average_speed,
           average_heartrate: activity.average_heartrate,
+          sport_type: activity.sport_type,
         }
       })
-  }, [activities])
+  }, [runActivities])
 
   const handleSort = (column: keyof Activity) => {
     if (sortColumn === column) {
@@ -204,24 +224,42 @@ export default function ActivitiesPage() {
       </div>
 
       {/* Distance Chart */}
-      {activities.length > 0 && (
+      {runActivities.length > 0 && (
         <div className="mb-8 rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
           <h2 className="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-50">
             Distance Over Time
           </h2>
-          <BarChart
+          <ComboChart
             data={chartData}
             index="date"
-            categories={["Distance (km)"]}
-            colors={["orange"]}
-            valueFormatter={(value) => `${value.toFixed(2)} km`}
-            showLegend={false}
             showGridLines={true}
-            yAxisLabel="Distance (km)"
             customTooltip={ActivityChartTooltip}
-            className="h-64"
-            barCategoryGap="20%"
+            enableBiaxial={true}
+            showLegend={true}
+            barSeries={{
+              categories: ["Distance (km)"],
+              colors: ["orange"],
+              valueFormatter: (value) => `${value.toFixed(2)} km`,
+              yAxisLabel: "Distance (km)",
+              allowDecimals: true,
+            }}
+            lineSeries={{
+              categories: ["Average Pace (min/km)"],
+              colors: ["lightBlue"],
+              valueFormatter: (value) => formatPaceValue(value),
+              yAxisLabel: "Pace (min/km)",
+              allowDecimals: true,
+              autoMinValue: true,
+              yAxisWidth: 72,
+              strokeWidth: 1,
+            }}
+            className="h-72"
           />
+        </div>
+      )}
+      {activities.length > 0 && runActivities.length === 0 && (
+        <div className="mb-8 rounded-lg border border-dashed border-gray-200 bg-white p-6 text-sm text-gray-500 dark:border-gray-800 dark:bg-gray-900 dark:text-gray-400">
+          No run activities available to display in the distance chart.
         </div>
       )}
 

@@ -1,9 +1,16 @@
 import { chartColors, getColorClassName } from "@/lib/chartUtils"
 import { cx, formatters } from "@/lib/utils"
-import { TooltipProps } from "./BarChart"
+import { TooltipProps as TooltipBarChartProps } from "./BarChart"
 import { TooltipProps as TooltipComboBarChartProps } from "./ComboChart"
 
-export const CustomTooltip = ({ payload, active }: TooltipProps) => {
+const formatPaceMinutes = (value: number | null | undefined) => {
+  if (typeof value !== "number" || !isFinite(value)) return "N/A"
+  const minutes = Math.floor(value)
+  const seconds = Math.round((value - minutes) * 60)
+  return `${minutes}:${seconds.toString().padStart(2, "0")} /km`
+}
+
+export const CustomTooltip = ({ payload, active }: TooltipBarChartProps) => {
   if (!active || !payload || payload.length === 0) return null
 
   const calculatePercentageDiff = () => {
@@ -117,7 +124,7 @@ export const CustomTooltip2 = ({
   )
 }
 
-export const CustomTooltip3 = ({ payload, active }: TooltipProps) => {
+export const CustomTooltip3 = ({ payload, active }: TooltipBarChartProps) => {
   const PEER_AVERAGE = 6.5
   if (!active || !payload?.length) return null
 
@@ -194,7 +201,7 @@ export const CustomTooltip3 = ({ payload, active }: TooltipProps) => {
   )
 }
 
-export const CustomTooltip4 = ({ payload, active }: TooltipProps) => {
+export const CustomTooltip4 = ({ payload, active }: TooltipBarChartProps) => {
   if (!active || !payload || payload.length === 0) return null
 
   {
@@ -259,19 +266,14 @@ export const CustomTooltip4 = ({ payload, active }: TooltipProps) => {
   )
 }
 
-export const ActivityChartTooltip = ({ payload, active, label }: TooltipProps) => {
+export const ActivityChartTooltip = ({ payload, active, label }: TooltipComboBarChartProps) => {
   if (!active || !payload || payload.length === 0) return null
 
   const activityData = payload[0].payload
   const distanceKm = activityData.distance ? (activityData.distance / 1000).toFixed(2) : 'N/A'
-  const pace = activityData.average_speed 
-    ? (() => {
-        const minutesPerKm = 1000 / (activityData.average_speed * 60)
-        const minutes = Math.floor(minutesPerKm)
-        const seconds = Math.round((minutesPerKm - minutes) * 60)
-        return `${minutes}:${seconds.toString().padStart(2, '0')} /km`
-      })()
-    : 'N/A'
+  const paceValue = activityData["Average Pace (min/km)"]
+    ?? (activityData.average_speed ? (1000 / activityData.average_speed) / 60 : null)
+  const pace = formatPaceMinutes(paceValue)
   const heartRate = activityData.average_heartrate 
     ? `${Math.round(activityData.average_heartrate)} bpm`
     : 'N/A'
