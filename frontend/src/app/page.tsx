@@ -79,7 +79,8 @@ const HeartRateZoneTooltip = ({ active, payload, label }: RechartsTooltipProps<n
     zone: string
     avgHeartRate: number | null
     percentage: number
-    totalTimeSec: number
+    timeSec: number
+    lapCount: number
   }
 
   const averageDisplay = zoneData.avgHeartRate !== null
@@ -91,24 +92,24 @@ const HeartRateZoneTooltip = ({ active, payload, label }: RechartsTooltipProps<n
       <p className="mb-2 text-sm font-medium text-gray-900 dark:text-gray-50">{String(label)}</p>
       <div className="space-y-1.5">
         <div className="flex items-center justify-between gap-6">
-          <span className="text-gray-500 dark:text-gray-400">Lap Count</span>
-          <span className="font-semibold text-gray-900 dark:text-gray-50">{zoneData['Lap Count'] as number}</span>
-        </div>
-        <div className="flex items-center justify-between gap-6">
           <span className="text-gray-500 dark:text-gray-400">Time</span>
           <span className="font-semibold text-gray-900 dark:text-gray-50">
-            {typeof zoneData.totalTimeSec === 'number' && zoneData.totalTimeSec > 0
-              ? formatSecondsToReadable(zoneData.totalTimeSec as number)
+            {typeof zoneData.timeSec === 'number' && zoneData.timeSec > 0
+              ? formatSecondsToReadable(zoneData.timeSec as number)
               : 'N/A'}
           </span>
         </div>
         <div className="flex items-center justify-between gap-6">
-          <span className="text-gray-500 dark:text-gray-400">Average HR</span>
-          <span className="font-semibold text-gray-900 dark:text-gray-50">{averageDisplay}</span>
+          <span className="text-gray-500 dark:text-gray-400">Percentage</span>
+          <span className="font-semibold text-gray-900 dark:text-gray-50">{zoneData.percentage.toFixed(1)}%</span>
         </div>
         <div className="flex items-center justify-between gap-6">
-          <span className="text-gray-500 dark:text-gray-400">Share</span>
-          <span className="font-semibold text-gray-900 dark:text-gray-50">{zoneData.percentage.toFixed(1)}%</span>
+          <span className="text-gray-500 dark:text-gray-400">Lap Count</span>
+          <span className="font-semibold text-gray-900 dark:text-gray-50">{zoneData.lapCount as number}</span>
+        </div>
+        <div className="flex items-center justify-between gap-6">
+          <span className="text-gray-500 dark:text-gray-400">Average HR</span>
+          <span className="font-semibold text-gray-900 dark:text-gray-50">{averageDisplay}</span>
         </div>
       </div>
     </div>
@@ -592,106 +593,103 @@ export default function DashboardPage() {
     })
   }, [laps])
 
-  const heartRateAnalysis = useMemo(() => {
-    const lapsWithHeartRate = oneKmLaps.filter((lap) => lap.average_heartrate !== null && lap.average_heartrate > 0)
-    if (!maxHeartRate || lapsWithHeartRate.length === 0) {
-      return {
-        zoneData: HEART_RATE_ZONES.map((zone) => ({
-          zone: zone.label,
-          'Lap Count': 0,
-          avgHeartRate: null,
-          percentage: 0,
+  // Calculate heart rate zone time distribution for different periods
+  const heartRateZoneAnalysis = useMemo(() => {
+    const now = new Date()
+    const oneWeekAgo = new Date(now.getTime() - 7 * 24 * 60 * 60 * 1000)
+    const fourWeeksAgo = new Date(now.getTime() - 4 * 7 * 24 * 60 * 60 * 1000)
+
+    const calculateZoneDistribution = (lapsInPeriod: LapWithActivity[]) => {
+      const lapsWithHeartRate = lapsInPeriod.filter(
+        (lap) => lap.average_heartrate !== null && lap.average_heartrate > 0 && lap.moving_time > 0
+      )
+
+      if (!maxHeartRate || lapsWithHeartRate.length === 0) {
+        return {
+          zoneData: HEART_RATE_ZONES.map((zone) => ({
+            zone: zone.label,
+            timeSec: 0,
+            percentage: 0,
+            lapCount: 0,
+            avgHeartRate: null as number | null,
+          })),
           totalTimeSec: 0,
-        })),
-        lapsWithHeartRateCount: lapsWithHeartRate.length,
-        overallAverageHeartRate: null as number | null,
+          totalLaps: 0,
+          overallAvgHeartRate: null as number | null,
+        }
+      }
+
+      const zoneAggregates = HEART_RATE_ZONES.map(() => ({
+        totalTime: 0,
+        lapCount: 0,
+        totalHeartRate: 0,
+      }))
+
+      lapsWithHeartRate.forEach((lap) => {
+        const avgHr = lap.average_heartrate as number
+        const ratio = avgHr / maxHeartRate
+
+        let zoneIndex = HEART_RATE_ZONES.findIndex((zone, index) => {
+          const isLastZone = index === HEART_RATE_ZONES.length - 1
+          if (isLastZone) {
+            return ratio >= zone.min
+          }
+          return ratio >= zone.min && ratio < zone.max
+        })
+
+        if (zoneIndex === -1) {
+          zoneIndex = ratio < HEART_RATE_ZONES[0].min ? 0 : HEART_RATE_ZONES.length - 1
+        }
+
+        zoneAggregates[zoneIndex].totalTime += lap.moving_time
+        zoneAggregates[zoneIndex].lapCount += 1
+        zoneAggregates[zoneIndex].totalHeartRate += avgHr
+      })
+
+      const totalTime = zoneAggregates.reduce((acc, zone) => acc + zone.totalTime, 0)
+      const totalHeartRate = zoneAggregates.reduce((acc, zone) => acc + zone.totalHeartRate, 0)
+      const totalLaps = zoneAggregates.reduce((acc, zone) => acc + zone.lapCount, 0)
+
+      const zoneData = HEART_RATE_ZONES.map((zone, index) => {
+        const { totalTime, lapCount, totalHeartRate: zoneHeartRateTotal } = zoneAggregates[index]
+        return {
+          zone: zone.label,
+          timeSec: totalTime,
+          percentage: totalTime > 0 ? (totalTime / totalTime) * 100 : 0,
+          lapCount,
+          avgHeartRate: lapCount > 0 ? zoneHeartRateTotal / lapCount : null,
+        }
+      })
+
+      // Recalculate percentages based on total time
+      const zoneDataWithPercentages = zoneData.map((zone) => ({
+        ...zone,
+        percentage: totalTime > 0 ? (zone.timeSec / totalTime) * 100 : 0,
+      }))
+
+      return {
+        zoneData: zoneDataWithPercentages,
+        totalTimeSec: totalTime,
+        totalLaps,
+        overallAvgHeartRate: totalLaps > 0 ? totalHeartRate / totalLaps : null,
       }
     }
 
-    const zoneAggregates = HEART_RATE_ZONES.map(() => ({ count: 0, totalHeartRate: 0, totalTime: 0 }))
-
-    lapsWithHeartRate.forEach((lap) => {
-      const avgHr = lap.average_heartrate as number
-      const ratio = avgHr / maxHeartRate
-
-      let zoneIndex = HEART_RATE_ZONES.findIndex((zone, index) => {
-        const isLastZone = index === HEART_RATE_ZONES.length - 1
-        if (isLastZone) {
-          return ratio >= zone.min
-        }
-        return ratio >= zone.min && ratio < zone.max
-      })
-
-      if (zoneIndex === -1) {
-        zoneIndex = ratio < HEART_RATE_ZONES[0].min ? 0 : HEART_RATE_ZONES.length - 1
-      }
-
-      zoneAggregates[zoneIndex].count += 1
-      zoneAggregates[zoneIndex].totalHeartRate += avgHr
-      if (lap.moving_time) {
-        zoneAggregates[zoneIndex].totalTime += lap.moving_time
-      }
-    })
-
-    const totalCount = zoneAggregates.reduce((acc, zone) => acc + zone.count, 0)
-    const totalHeartRate = zoneAggregates.reduce((acc, zone) => acc + zone.totalHeartRate, 0)
-
-    const zoneData = HEART_RATE_ZONES.map((zone, index) => {
-      const { count, totalHeartRate: zoneHeartRateTotal, totalTime } = zoneAggregates[index]
-      return {
-        zone: zone.label,
-        'Lap Count': count,
-        avgHeartRate: count > 0 ? zoneHeartRateTotal / count : null,
-        percentage: totalCount > 0 ? (count / totalCount) * 100 : 0,
-        totalTimeSec: totalTime,
-      }
-    })
+    // Filter laps for each period
+    const sinceSept1Laps = oneKmLaps.filter(
+      (lap) => new Date(lap.start_date) >= TRAINING_START_DATE
+    )
+    const last4WeeksLaps = oneKmLaps.filter((lap) => new Date(lap.start_date) >= fourWeeksAgo)
+    const lastWeekLaps = oneKmLaps.filter((lap) => new Date(lap.start_date) >= oneWeekAgo)
 
     return {
-      zoneData,
-      lapsWithHeartRateCount: totalCount,
-      overallAverageHeartRate: totalCount > 0 ? totalHeartRate / totalCount : null,
+      sinceSept1: calculateZoneDistribution(sinceSept1Laps),
+      last4Weeks: calculateZoneDistribution(last4WeeksLaps),
+      lastWeek: calculateZoneDistribution(lastWeekLaps),
     }
   }, [oneKmLaps, maxHeartRate])
 
-  const { zoneData: heartRateZoneData, lapsWithHeartRateCount, overallAverageHeartRate } = heartRateAnalysis
   const totalOneKmLapCount = oneKmLaps.length
-
-  useEffect(() => {
-    if (selectedZoneIndex !== null && selectedZoneIndex >= heartRateZoneData.length) {
-      setSelectedZoneIndex(null)
-    }
-  }, [heartRateZoneData.length, selectedZoneIndex])
-
-  useEffect(() => {
-    if (heartRateZoneData.every(zone => zone['Lap Count'] === 0)) {
-      setSelectedZoneIndex(null)
-    }
-  }, [heartRateZoneData])
-
-  const defaultActiveZoneIndex = useMemo(() => {
-    const firstWithData = heartRateZoneData.findIndex(zone => zone['Lap Count'] > 0)
-    return firstWithData !== -1 ? firstWithData : null
-  }, [heartRateZoneData])
-
-  const highlightedZoneIndex = activeZoneIndex ?? selectedZoneIndex ?? defaultActiveZoneIndex
-  const highlightedZone = highlightedZoneIndex !== null ? heartRateZoneData[highlightedZoneIndex] : null
-
-  const handleZoneHover = useCallback((_: any, index: number) => {
-    setActiveZoneIndex(index)
-  }, [])
-
-  const handleZoneLeave = useCallback(() => {
-    setActiveZoneIndex(null)
-  }, [])
-
-  const toggleZoneSelection = useCallback((index: number) => {
-    setSelectedZoneIndex(prev => (prev === index ? null : index))
-  }, [])
-
-  const handleZoneSelect = useCallback((_: any, index: number) => {
-    toggleZoneSelection(index)
-  }, [toggleZoneSelection])
 
   // Calculate weekly metrics for 1km laps over last 10 weeks
   const weekly1KmLapsMetrics = useMemo(() => {
@@ -1677,7 +1675,7 @@ export default function DashboardPage() {
             <div>
               <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-50">Heart Rate Zone Analysis</h2>
               <p className="text-sm text-gray-500 dark:text-gray-400">
-                Based on 1 km laps recorded since September 1, 2025.
+                Time distribution across heart rate zones based on 1 km laps average heart rate.
               </p>
             </div>
           </div>
@@ -1706,16 +1704,6 @@ export default function DashboardPage() {
                 <span className="block text-[11px] uppercase tracking-wide text-gray-400 dark:text-gray-500">1 km laps</span>
                 <span className="text-sm font-semibold text-gray-900 dark:text-gray-50">{totalOneKmLapCount}</span>
               </div>
-              <div>
-                <span className="block text-[11px] uppercase tracking-wide text-gray-400 dark:text-gray-500">With HR data</span>
-                <span className="text-sm font-semibold text-gray-900 dark:text-gray-50">{lapsWithHeartRateCount}</span>
-              </div>
-              {overallAverageHeartRate !== null && (
-                <div>
-                  <span className="block text-[11px] uppercase tracking-wide text-gray-400 dark:text-gray-500">Avg lap HR</span>
-                  <span className="text-sm font-semibold text-gray-900 dark:text-gray-50">{Math.round(overallAverageHeartRate)} bpm</span>
-                </div>
-              )}
             </div>
           </div>
 
@@ -1724,134 +1712,301 @@ export default function DashboardPage() {
               <p className="text-sm text-gray-500 dark:text-gray-400">
                 Enter a valid max heart rate to see zone distribution.
               </p>
-            ) : lapsWithHeartRateCount === 0 ? (
-              <p className="text-sm text-gray-500 dark:text-gray-400">
-                No 1 km laps with heart rate data available yet.
-              </p>
             ) : (
-              <div className="space-y-4">
-                <div className="flex flex-wrap gap-2" role="group" aria-label="Heart rate zones">
-                  {heartRateZoneData.map((zone, index) => {
-                    const zoneColor = HEART_RATE_ZONE_COLORS[index % HEART_RATE_ZONE_COLORS.length]
-                    const isHighlighted = highlightedZoneIndex === index
-                    return (
-                      <button
-                        key={zone.zone}
-                        type="button"
-                        onClick={() => toggleZoneSelection(index)}
-                        className={`group flex min-w-[44px] flex-1 items-center justify-center gap-2 rounded-full border px-3 py-2 text-xs font-medium transition focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-orange-400 dark:border-gray-700 sm:flex-none sm:justify-start sm:py-1 sm:px-3 ${
-                          isHighlighted
-                            ? 'border-orange-300 bg-orange-50 text-gray-900 shadow-sm dark:border-orange-500/40 dark:bg-orange-500/10 dark:text-orange-200'
-                            : 'border-gray-200 text-gray-600 hover:border-orange-300 hover:bg-orange-50/60 hover:text-gray-900 dark:border-gray-700 dark:text-gray-400 dark:hover:border-orange-500/40 dark:hover:bg-orange-500/10 dark:hover:text-orange-100'
-                        }`}
-                      >
-                        <span className="sr-only">{isHighlighted ? 'Selected zone' : 'Select zone'} {zone.zone}</span>
-                        <span
-                          aria-hidden="true"
-                          className="h-2.5 w-2.5 rounded-full"
-                          style={{ backgroundColor: zoneColor }}
-                        />
-                        <span className="truncate max-w-[10ch] sm:max-w-none">{zone.zone}</span>
-                        <span className="text-[11px] text-gray-400 dark:text-gray-500">({zone['Lap Count']})</span>
-                      </button>
-                    )
-                  })}
-                </div>
-
-                <div className="h-80">
-                  <ResponsiveContainer width="100%" height="100%">
-                    <PieChart>
-                      <Pie
-                        data={heartRateZoneData}
-                        dataKey="Lap Count"
-                        nameKey="zone"
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={70}
-                        outerRadius={120}
-                        paddingAngle={2}
-                        cornerRadius={4}
-                        onMouseEnter={handleZoneHover}
-                        onMouseMove={handleZoneHover}
-                        onMouseLeave={handleZoneLeave}
-                        onClick={handleZoneSelect}
-                        onTouchStart={handleZoneSelect}
-                      >
-                        {heartRateZoneData.map((entry, index) => {
-                          const zoneColor = HEART_RATE_ZONE_COLORS[index % HEART_RATE_ZONE_COLORS.length]
-                          const isHighlighted = highlightedZoneIndex === index
-                          return (
-                            <Cell
-                              key={`heart-rate-zone-${entry.zone}`}
-                              fill={zoneColor}
-                        fillOpacity={highlightedZoneIndex === null ? 0.85 : isHighlighted ? 1 : 0.3}
-                        stroke="#111827"
-                        strokeOpacity={isHighlighted ? 0.35 : 0.12}
-                        strokeWidth={isHighlighted ? 2 : 0.8}
-                        className="transition-all duration-200 ease-out"
-                            />
-                          )
-                        })}
-                      </Pie>
-                      <Tooltip content={HeartRateZoneTooltip} />
-                    </PieChart>
-                  </ResponsiveContainer>
-                </div>
-
-                {highlightedZone && (
-                  <div className="rounded-xl border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/40">
-                    <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-                      <div className="flex items-center gap-3">
-                        <span
-                          aria-hidden="true"
-                          className="h-3.5 w-3.5 rounded-full"
-                          style={{
-                            backgroundColor: HEART_RATE_ZONE_COLORS[
-                              highlightedZoneIndex! % HEART_RATE_ZONE_COLORS.length
-                            ],
-                          }}
-                        />
-                        <div>
-                          <p className="text-sm font-semibold text-gray-900 dark:text-gray-50">
-                            {highlightedZone.zone}
-                          </p>
-                          <p className="text-xs text-gray-500 dark:text-gray-400">
-                            {highlightedZone.percentage.toFixed(1)}% of 1 km laps
-                          </p>
-                        </div>
-                      </div>
-                      <button
-                        type="button"
-                        onClick={() => toggleZoneSelection(highlightedZoneIndex!)}
-                        className="self-start rounded-full border border-gray-300 px-2.5 py-1 text-xs text-gray-500 transition hover:border-orange-300 hover:text-orange-500 dark:border-gray-700 dark:text-gray-400 dark:hover:border-orange-500/40 dark:hover:text-orange-200 sm:self-center"
-                      >
-                        {selectedZoneIndex === highlightedZoneIndex ? 'Pinned' : 'Pin zone'}
-                      </button>
-                    </div>
-                    <div className="mt-4 grid grid-cols-1 gap-3 sm:grid-cols-3">
-                      <div className="rounded-lg bg-white px-4 py-3 text-center shadow-sm dark:bg-gray-900/60">
-                        <p className="text-xs uppercase tracking-wide text-gray-400 dark:text-gray-500">Lap Count</p>
-                        <p className="mt-1 text-lg font-semibold text-gray-900 dark:text-gray-50">
-                          {highlightedZone['Lap Count']}
-                        </p>
-                      </div>
-                      <div className="rounded-lg bg-white px-4 py-3 text-center shadow-sm dark:bg-gray-900/60">
-                        <p className="text-xs uppercase tracking-wide text-gray-400 dark:text-gray-500">Time</p>
-                        <p className="mt-1 text-lg font-semibold text-gray-900 dark:text-gray-50">
-                          {highlightedZone.totalTimeSec && highlightedZone.totalTimeSec > 0
-                            ? formatSecondsToReadable(highlightedZone.totalTimeSec)
-                            : '—'}
-                        </p>
-                      </div>
-                      <div className="rounded-lg bg-white px-4 py-3 text-center shadow-sm dark:bg-gray-900/60">
-                        <p className="text-xs uppercase tracking-wide text-gray-400 dark:text-gray-500">Avg HR</p>
-                        <p className="mt-1 text-lg font-semibold text-gray-900 dark:text-gray-50">
-                          {highlightedZone.avgHeartRate ? `${Math.round(highlightedZone.avgHeartRate)} bpm` : '—'}
-                        </p>
+              <div className="space-y-6">
+                {/* Three Pie Charts */}
+                <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
+                  {/* Since Sept 1 */}
+                  {heartRateZoneAnalysis.sinceSept1.totalTimeSec > 0 && (
+                    <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/40">
+                      <h3 className="mb-4 text-center text-sm font-semibold text-gray-900 dark:text-gray-50">
+                        Since Sept 1
+                      </h3>
+                      <div className="h-64">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                            <Pie
+                              data={heartRateZoneAnalysis.sinceSept1.zoneData}
+                              dataKey="timeSec"
+                              nameKey="zone"
+                              cx="50%"
+                              cy="50%"
+                              innerRadius={50}
+                              outerRadius={90}
+                              paddingAngle={2}
+                              cornerRadius={4}
+                            >
+                              {heartRateZoneAnalysis.sinceSept1.zoneData.map((entry, index) => (
+                                <Cell
+                                  key={`since-sept1-${entry.zone}`}
+                                  fill={HEART_RATE_ZONE_COLORS[index % HEART_RATE_ZONE_COLORS.length]}
+                                  fillOpacity={entry.timeSec > 0 ? 0.85 : 0.2}
+                                  stroke="#111827"
+                                  strokeOpacity={0.12}
+                                  strokeWidth={0.8}
+                                />
+                              ))}
+                            </Pie>
+                            <Tooltip content={HeartRateZoneTooltip} />
+                          </PieChart>
+                        </ResponsiveContainer>
                       </div>
                     </div>
-                  </div>
-                )}
+                  )}
+
+                  {/* Last 4 Weeks */}
+                  {heartRateZoneAnalysis.last4Weeks.totalTimeSec > 0 && (
+                    <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/40">
+                      <h3 className="mb-4 text-center text-sm font-semibold text-gray-900 dark:text-gray-50">
+                        Last 4 Weeks
+                      </h3>
+                      <div className="h-64">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                            <Pie
+                              data={heartRateZoneAnalysis.last4Weeks.zoneData}
+                              dataKey="timeSec"
+                              nameKey="zone"
+                              cx="50%"
+                              cy="50%"
+                              innerRadius={50}
+                              outerRadius={90}
+                              paddingAngle={2}
+                              cornerRadius={4}
+                            >
+                              {heartRateZoneAnalysis.last4Weeks.zoneData.map((entry, index) => (
+                                <Cell
+                                  key={`last4weeks-${entry.zone}`}
+                                  fill={HEART_RATE_ZONE_COLORS[index % HEART_RATE_ZONE_COLORS.length]}
+                                  fillOpacity={entry.timeSec > 0 ? 0.85 : 0.2}
+                                  stroke="#111827"
+                                  strokeOpacity={0.12}
+                                  strokeWidth={0.8}
+                                />
+                              ))}
+                            </Pie>
+                            <Tooltip content={HeartRateZoneTooltip} />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Last Week */}
+                  {heartRateZoneAnalysis.lastWeek.totalTimeSec > 0 && (
+                    <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/40">
+                      <h3 className="mb-4 text-center text-sm font-semibold text-gray-900 dark:text-gray-50">
+                        Last Week
+                      </h3>
+                      <div className="h-64">
+                        <ResponsiveContainer width="100%" height="100%">
+                          <PieChart>
+                            <Pie
+                              data={heartRateZoneAnalysis.lastWeek.zoneData}
+                              dataKey="timeSec"
+                              nameKey="zone"
+                              cx="50%"
+                              cy="50%"
+                              innerRadius={50}
+                              outerRadius={90}
+                              paddingAngle={2}
+                              cornerRadius={4}
+                            >
+                              {heartRateZoneAnalysis.lastWeek.zoneData.map((entry, index) => (
+                                <Cell
+                                  key={`lastweek-${entry.zone}`}
+                                  fill={HEART_RATE_ZONE_COLORS[index % HEART_RATE_ZONE_COLORS.length]}
+                                  fillOpacity={entry.timeSec > 0 ? 0.85 : 0.2}
+                                  stroke="#111827"
+                                  strokeOpacity={0.12}
+                                  strokeWidth={0.8}
+                                />
+                              ))}
+                            </Pie>
+                            <Tooltip content={HeartRateZoneTooltip} />
+                          </PieChart>
+                        </ResponsiveContainer>
+                      </div>
+                    </div>
+                  )}
+                </div>
+
+                {/* Metrics Table */}
+                <div className="overflow-hidden rounded-lg border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
+                  <table className="w-full" style={{ tableLayout: 'fixed' }}>
+                    <colgroup>
+                      <col style={{ width: '20%' }} />
+                      <col style={{ width: '20%' }} />
+                      <col style={{ width: '20%' }} />
+                      <col style={{ width: '20%' }} />
+                      <col style={{ width: '20%' }} />
+                    </colgroup>
+                    <thead className="border-b border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-900/50">
+                      <tr>
+                        <th className="px-4 py-3 text-left text-xs font-semibold text-gray-900 dark:text-gray-50">
+                          Zone
+                        </th>
+                        <th className="px-4 py-3 text-center text-xs font-semibold text-gray-900 dark:text-gray-50">
+                          Since Sept 1
+                        </th>
+                        <th className="px-4 py-3 text-center text-xs font-semibold text-gray-900 dark:text-gray-50">
+                          Last 4 Weeks
+                        </th>
+                        <th className="px-4 py-3 text-center text-xs font-semibold text-gray-900 dark:text-gray-50">
+                          Last Week
+                        </th>
+                        <th className="px-4 py-3 text-center text-xs font-semibold text-gray-900 dark:text-gray-50">
+                          Avg HR
+                        </th>
+                      </tr>
+                    </thead>
+                    <tbody className="divide-y divide-gray-200 dark:divide-gray-800">
+                      {HEART_RATE_ZONES.map((zone, zoneIndex) => {
+                        const sinceSept1Zone = heartRateZoneAnalysis.sinceSept1.zoneData[zoneIndex]
+                        const last4WeeksZone = heartRateZoneAnalysis.last4Weeks.zoneData[zoneIndex]
+                        const lastWeekZone = heartRateZoneAnalysis.lastWeek.zoneData[zoneIndex]
+                        const zoneColor = HEART_RATE_ZONE_COLORS[zoneIndex % HEART_RATE_ZONE_COLORS.length]
+                        
+                        // Calculate average HR across all periods (weighted by time)
+                        let totalTimeForAvg = 0
+                        let totalHRForAvg = 0
+                        if (sinceSept1Zone.timeSec > 0 && sinceSept1Zone.avgHeartRate !== null) {
+                          totalTimeForAvg += sinceSept1Zone.timeSec
+                          totalHRForAvg += sinceSept1Zone.avgHeartRate * sinceSept1Zone.timeSec
+                        }
+                        if (last4WeeksZone.timeSec > 0 && last4WeeksZone.avgHeartRate !== null) {
+                          totalTimeForAvg += last4WeeksZone.timeSec
+                          totalHRForAvg += last4WeeksZone.avgHeartRate * last4WeeksZone.timeSec
+                        }
+                        if (lastWeekZone.timeSec > 0 && lastWeekZone.avgHeartRate !== null) {
+                          totalTimeForAvg += lastWeekZone.timeSec
+                          totalHRForAvg += lastWeekZone.avgHeartRate * lastWeekZone.timeSec
+                        }
+                        const avgHR = totalTimeForAvg > 0 ? totalHRForAvg / totalTimeForAvg : null
+
+                        return (
+                          <tr key={zone.label} className="hover:bg-gray-50 dark:hover:bg-gray-900/50">
+                            <td className="px-4 py-3">
+                              <div className="flex items-center gap-2">
+                                <span
+                                  className="h-3 w-3 rounded-full"
+                                  style={{ backgroundColor: zoneColor }}
+                                />
+                                <span className="text-xs font-medium text-gray-900 dark:text-gray-50">
+                                  {zone.label}
+                                </span>
+                              </div>
+                            </td>
+                            <td className="px-4 py-3 text-center text-xs text-gray-900 dark:text-gray-50">
+                              {sinceSept1Zone.timeSec > 0 ? (
+                                <div>
+                                  <div className="font-semibold">{sinceSept1Zone.percentage.toFixed(1)}%</div>
+                                  <div className="text-gray-500 dark:text-gray-400">
+                                    {formatSecondsToReadable(sinceSept1Zone.timeSec)}
+                                  </div>
+                                </div>
+                              ) : (
+                                <span className="text-gray-400 dark:text-gray-600">—</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 text-center text-xs text-gray-900 dark:text-gray-50">
+                              {last4WeeksZone.timeSec > 0 ? (
+                                <div>
+                                  <div className="font-semibold">{last4WeeksZone.percentage.toFixed(1)}%</div>
+                                  <div className="text-gray-500 dark:text-gray-400">
+                                    {formatSecondsToReadable(last4WeeksZone.timeSec)}
+                                  </div>
+                                </div>
+                              ) : (
+                                <span className="text-gray-400 dark:text-gray-600">—</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 text-center text-xs text-gray-900 dark:text-gray-50">
+                              {lastWeekZone.timeSec > 0 ? (
+                                <div>
+                                  <div className="font-semibold">{lastWeekZone.percentage.toFixed(1)}%</div>
+                                  <div className="text-gray-500 dark:text-gray-400">
+                                    {formatSecondsToReadable(lastWeekZone.timeSec)}
+                                  </div>
+                                </div>
+                              ) : (
+                                <span className="text-gray-400 dark:text-gray-600">—</span>
+                              )}
+                            </td>
+                            <td className="px-4 py-3 text-center text-xs text-gray-900 dark:text-gray-50">
+                              {avgHR !== null ? (
+                                <span className="font-semibold">{Math.round(avgHR)} bpm</span>
+                              ) : (
+                                <span className="text-gray-400 dark:text-gray-600">—</span>
+                              )}
+                            </td>
+                          </tr>
+                        )
+                      })}
+                    </tbody>
+                    <tfoot className="border-t border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-900/50">
+                      <tr>
+                        <td className="px-4 py-3 text-xs font-semibold text-gray-900 dark:text-gray-50">
+                          Total
+                        </td>
+                        <td className="px-4 py-3 text-center text-xs text-gray-900 dark:text-gray-50">
+                          {heartRateZoneAnalysis.sinceSept1.totalTimeSec > 0 ? (
+                            <div>
+                              <div className="font-semibold">100%</div>
+                              <div className="text-gray-500 dark:text-gray-400">
+                                {formatSecondsToReadable(heartRateZoneAnalysis.sinceSept1.totalTimeSec)}
+                              </div>
+                              {heartRateZoneAnalysis.sinceSept1.overallAvgHeartRate !== null && (
+                                <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                  Avg: {Math.round(heartRateZoneAnalysis.sinceSept1.overallAvgHeartRate)} bpm
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-gray-400 dark:text-gray-600">—</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-center text-xs text-gray-900 dark:text-gray-50">
+                          {heartRateZoneAnalysis.last4Weeks.totalTimeSec > 0 ? (
+                            <div>
+                              <div className="font-semibold">100%</div>
+                              <div className="text-gray-500 dark:text-gray-400">
+                                {formatSecondsToReadable(heartRateZoneAnalysis.last4Weeks.totalTimeSec)}
+                              </div>
+                              {heartRateZoneAnalysis.last4Weeks.overallAvgHeartRate !== null && (
+                                <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                  Avg: {Math.round(heartRateZoneAnalysis.last4Weeks.overallAvgHeartRate)} bpm
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-gray-400 dark:text-gray-600">—</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-center text-xs text-gray-900 dark:text-gray-50">
+                          {heartRateZoneAnalysis.lastWeek.totalTimeSec > 0 ? (
+                            <div>
+                              <div className="font-semibold">100%</div>
+                              <div className="text-gray-500 dark:text-gray-400">
+                                {formatSecondsToReadable(heartRateZoneAnalysis.lastWeek.totalTimeSec)}
+                              </div>
+                              {heartRateZoneAnalysis.lastWeek.overallAvgHeartRate !== null && (
+                                <div className="mt-1 text-xs text-gray-500 dark:text-gray-400">
+                                  Avg: {Math.round(heartRateZoneAnalysis.lastWeek.overallAvgHeartRate)} bpm
+                                </div>
+                              )}
+                            </div>
+                          ) : (
+                            <span className="text-gray-400 dark:text-gray-600">—</span>
+                          )}
+                        </td>
+                        <td className="px-4 py-3 text-center text-xs text-gray-900 dark:text-gray-50">
+                          <span className="text-gray-400 dark:text-gray-600">—</span>
+                        </td>
+                      </tr>
+                    </tfoot>
+                  </table>
+                </div>
               </div>
             )}
           </div>
