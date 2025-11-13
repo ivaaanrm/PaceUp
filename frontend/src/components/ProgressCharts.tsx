@@ -3,12 +3,15 @@
 import { useMemo } from "react"
 import { LineChart, Line, XAxis, YAxis, CartesianGrid, Tooltip, ResponsiveContainer, Legend } from "recharts"
 import type { LapWithActivity } from "@/lib/api"
+import { useIsMobile } from "@/lib/useMobile"
 
 interface ProgressChartsProps {
   laps: LapWithActivity[]
 }
 
 export function ProgressCharts({ laps }: ProgressChartsProps) {
+  const isMobile = useIsMobile()
+  
   const chartData = useMemo(() => {
     const MIN_PACE = 2.0
     const MAX_PACE = 6.5
@@ -149,12 +152,18 @@ export function ProgressCharts({ laps }: ProgressChartsProps) {
       )}
 
       {/* Pace Progress Chart */}
-      <div className="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
-        <h3 className="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-50">
+      <div className={`rounded-lg border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900 ${isMobile ? 'p-3' : 'p-6'}`}>
+        <h3 className={`${isMobile ? 'mb-3 text-base' : 'mb-4 text-lg'} font-semibold text-gray-900 dark:text-gray-50`}>
           Average Pace by Week
         </h3>
         <ResponsiveContainer width="100%" height={300}>
-          <LineChart data={chartData}>
+          <LineChart 
+            data={chartData}
+            margin={isMobile 
+              ? { top: 5, right: 5, left: 5, bottom: 5 }
+              : { top: 5, right: 30, left: 20, bottom: 5 }
+            }
+          >
             <CartesianGrid strokeDasharray="3 3" className="stroke-gray-200 dark:stroke-gray-800" />
             <XAxis
               dataKey="week"
@@ -163,10 +172,17 @@ export function ProgressCharts({ laps }: ProgressChartsProps) {
             />
             <YAxis
               tickFormatter={formatPace}
+              width={isMobile ? 40 : 56}
               className="text-xs text-gray-500 dark:text-gray-400"
               tick={{ fill: 'currentColor' }}
               domain={['auto', 'auto']}
               reversed
+              label={!isMobile ? { 
+                value: 'Pace (min/km)', 
+                angle: -90, 
+                position: 'insideLeft',
+                className: 'text-sm fill-orange-600 dark:fill-orange-400'
+              } : undefined}
             />
             <Tooltip
               content={({ active, payload }) => {
@@ -191,7 +207,15 @@ export function ProgressCharts({ laps }: ProgressChartsProps) {
                 return null
               }}
             />
-            <Legend />
+            {isMobile ? (
+              <Legend 
+                wrapperStyle={{ paddingTop: '10px', paddingBottom: '10px' }}
+                formatter={() => 'Average Pace (min/km)'}
+                iconType="line"
+              />
+            ) : (
+              <Legend />
+            )}
             <Line
               type="monotone"
               dataKey="avgPace"
@@ -206,12 +230,18 @@ export function ProgressCharts({ laps }: ProgressChartsProps) {
 
       {/* Heart Rate Progress Chart */}
       {chartData.some(d => d.avgHeartRate) && (
-        <div className="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
-          <h3 className="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-50">
+        <div className={`rounded-lg border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900 ${isMobile ? 'p-3' : 'p-6'}`}>
+          <h3 className={`${isMobile ? 'mb-3 text-base' : 'mb-4 text-lg'} font-semibold text-gray-900 dark:text-gray-50`}>
             Average Heart Rate by Week
           </h3>
           <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={chartData}>
+            <LineChart 
+              data={chartData}
+              margin={isMobile 
+                ? { top: 5, right: 5, left: 5, bottom: 5 }
+                : { top: 5, right: 30, left: 20, bottom: 5 }
+              }
+            >
               <CartesianGrid strokeDasharray="3 3" className="stroke-gray-200 dark:stroke-gray-800" />
               <XAxis
                 dataKey="week"
@@ -219,9 +249,16 @@ export function ProgressCharts({ laps }: ProgressChartsProps) {
                 tick={{ fill: 'currentColor' }}
               />
               <YAxis
+                width={isMobile ? 40 : 56}
                 className="text-xs text-gray-500 dark:text-gray-400"
                 tick={{ fill: 'currentColor' }}
                 domain={['auto', 'auto']}
+                label={!isMobile ? { 
+                  value: 'Heart Rate (bpm)', 
+                  angle: -90, 
+                  position: 'insideLeft',
+                  className: 'text-sm fill-red-600 dark:fill-red-400'
+                } : undefined}
               />
               <Tooltip
                 content={({ active, payload }) => {
@@ -243,7 +280,15 @@ export function ProgressCharts({ laps }: ProgressChartsProps) {
                   return null
                 }}
               />
-              <Legend />
+              {isMobile ? (
+                <Legend 
+                  wrapperStyle={{ paddingTop: '10px', paddingBottom: '10px' }}
+                  formatter={() => 'Average Heart Rate (bpm)'}
+                  iconType="line"
+                />
+              ) : (
+                <Legend />
+              )}
               <Line
                 type="monotone"
                 dataKey="avgHeartRate"
@@ -259,12 +304,18 @@ export function ProgressCharts({ laps }: ProgressChartsProps) {
 
       {/* Cadence Progress Chart */}
       {chartData.some(d => d.avgCadence) && (
-        <div className="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
-          <h3 className="mb-4 text-lg font-semibold text-gray-900 dark:text-gray-50">
+        <div className={`rounded-lg border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900 ${isMobile ? 'p-3' : 'p-6'}`}>
+          <h3 className={`${isMobile ? 'mb-3 text-base' : 'mb-4 text-lg'} font-semibold text-gray-900 dark:text-gray-50`}>
             Average Cadence by Week
           </h3>
           <ResponsiveContainer width="100%" height={300}>
-            <LineChart data={chartData}>
+            <LineChart 
+              data={chartData}
+              margin={isMobile 
+                ? { top: 5, right: 5, left: 5, bottom: 5 }
+                : { top: 5, right: 30, left: 20, bottom: 5 }
+              }
+            >
               <CartesianGrid strokeDasharray="3 3" className="stroke-gray-200 dark:stroke-gray-800" />
               <XAxis
                 dataKey="week"
@@ -272,9 +323,16 @@ export function ProgressCharts({ laps }: ProgressChartsProps) {
                 tick={{ fill: 'currentColor' }}
               />
               <YAxis
+                width={isMobile ? 40 : 56}
                 className="text-xs text-gray-500 dark:text-gray-400"
                 tick={{ fill: 'currentColor' }}
                 domain={['auto', 'auto']}
+                label={!isMobile ? { 
+                  value: 'Cadence (spm)', 
+                  angle: -90, 
+                  position: 'insideLeft',
+                  className: 'text-sm fill-purple-600 dark:fill-purple-400'
+                } : undefined}
               />
               <Tooltip
                 content={({ active, payload }) => {
@@ -296,7 +354,15 @@ export function ProgressCharts({ laps }: ProgressChartsProps) {
                   return null
                 }}
               />
-              <Legend />
+              {isMobile ? (
+                <Legend 
+                  wrapperStyle={{ paddingTop: '10px', paddingBottom: '10px' }}
+                  formatter={() => 'Average Cadence (spm)'}
+                  iconType="line"
+                />
+              ) : (
+                <Legend />
+              )}
               <Line
                 type="monotone"
                 dataKey="avgCadence"

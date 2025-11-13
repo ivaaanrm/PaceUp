@@ -6,6 +6,7 @@ import { stravaAPI, type Activity, type Lap, formatDistance, formatDuration, for
 import { Button } from "@/components/Button"
 import { RiArrowLeftLine, RiRefreshLine, RiRunLine } from "@remixicon/react"
 import { useAuth } from "@/contexts/AuthContext"
+import { ActivityPaceHeartRateChart } from "@/components/ActivityPaceHeartRateChart"
 
 export default function ActivityDetailPage() {
   const { isAuthenticated } = useAuth()
@@ -199,6 +200,13 @@ export default function ActivityDetailPage() {
           )}
         </dl>
       </div>
+
+      {/* Pace & Heart Rate Chart */}
+      {laps.length > 0 && (
+        <div className="mb-8">
+          <ActivityPaceHeartRateChart laps={laps} />
+        </div>
+      )}
 
       {/* Laps Section */}
       <div className="rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">

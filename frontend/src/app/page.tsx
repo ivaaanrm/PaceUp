@@ -56,7 +56,7 @@ const HEART_RATE_ZONES = [
   { label: 'Zone 5 (90-100%)', min: 0.9, max: Number.POSITIVE_INFINITY },
 ] as const
 
-const HEART_RATE_ZONE_COLORS = ['#d4d4d4', '#bfdbfe', '#bbf7d0', '#fed7aa', '#fecdd3']
+const HEART_RATE_ZONE_COLORS = ['#94a3b8', '#3b82f6', '#22c55e', '#f97316', '#ef4444']
 
 const formatSecondsToReadable = (seconds: number) => {
   if (!seconds || seconds <= 0) return '0:00'
@@ -429,6 +429,7 @@ export default function DashboardPage() {
   const [maxHeartRateInput, setMaxHeartRateInput] = useState('190')
   const [activeZoneIndex, setActiveZoneIndex] = useState<number | null>(null)
   const [selectedZoneIndex, setSelectedZoneIndex] = useState<number | null>(null)
+  const [selectedPeriod, setSelectedPeriod] = useState<'sinceSept1' | 'last4Weeks' | 'lastWeek'>('sinceSept1')
 
   useEffect(() => {
     loadData()
@@ -1670,21 +1671,21 @@ export default function DashboardPage() {
 
       {/* Heart Rate Training Zones */}
       {(activities.length > 0 || laps.length > 0) && (
-        <div className="mb-8 rounded-lg border border-gray-200 bg-white p-6 dark:border-gray-800 dark:bg-gray-900">
-          <div className="flex flex-col gap-2 sm:flex-row sm:items-center sm:justify-between">
+        <div className="mb-4 rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-800 dark:bg-gray-900 sm:mb-6 sm:p-4 lg:p-6">
+          <div className="mb-3 flex flex-col gap-1 sm:mb-4 sm:gap-2">
             <div>
-              <h2 className="text-lg font-semibold text-gray-900 dark:text-gray-50">Heart Rate Zone Analysis</h2>
-              <p className="text-sm text-gray-500 dark:text-gray-400">
+              <h2 className="text-base font-semibold text-gray-900 dark:text-gray-50 sm:text-lg">Heart Rate Zone Analysis</h2>
+              <p className="text-xs text-gray-500 dark:text-gray-400 sm:text-sm">
                 Time distribution across heart rate zones based on 1 km laps average heart rate.
               </p>
             </div>
           </div>
 
-          <div className="mt-4 flex flex-col gap-4 md:flex-row md:items-end">
-            <div className="w-full max-w-xs">
+          <div className="mb-3 flex flex-col gap-3 sm:mb-4 sm:flex-row sm:items-end sm:gap-4">
+            <div className="w-full sm:max-w-xs">
               <label
                 htmlFor="max-heart-rate-dashboard"
-                className="mb-1 block text-xs font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400"
+                className="mb-1 block text-[10px] font-medium uppercase tracking-wide text-gray-500 dark:text-gray-400 sm:text-xs"
               >
                 Max Heart Rate (bpm)
               </label>
@@ -1699,147 +1700,319 @@ export default function DashboardPage() {
                 placeholder="Enter max heart rate"
               />
             </div>
-            <div className="flex flex-1 flex-wrap items-center gap-6 text-xs text-gray-500 dark:text-gray-400">
+            <div className="flex flex-1 flex-wrap items-center gap-4 text-xs text-gray-500 dark:text-gray-400 sm:gap-6">
               <div>
-                <span className="block text-[11px] uppercase tracking-wide text-gray-400 dark:text-gray-500">1 km laps</span>
-                <span className="text-sm font-semibold text-gray-900 dark:text-gray-50">{totalOneKmLapCount}</span>
+                <span className="block text-[10px] uppercase tracking-wide text-gray-400 dark:text-gray-500 sm:text-[11px]">1 km laps</span>
+                <span className="text-xs font-semibold text-gray-900 dark:text-gray-50 sm:text-sm">{totalOneKmLapCount}</span>
               </div>
             </div>
           </div>
 
-          <div className="mt-6">
+          <div className="mt-3 sm:mt-4">
             {!maxHeartRate ? (
-              <p className="text-sm text-gray-500 dark:text-gray-400">
+              <p className="text-xs text-gray-500 dark:text-gray-400 sm:text-sm">
                 Enter a valid max heart rate to see zone distribution.
               </p>
             ) : (
-              <div className="space-y-6">
-                {/* Three Pie Charts */}
-                <div className="grid grid-cols-1 gap-6 lg:grid-cols-3">
-                  {/* Since Sept 1 */}
-                  {heartRateZoneAnalysis.sinceSept1.totalTimeSec > 0 && (
-                    <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/40">
-                      <h3 className="mb-4 text-center text-sm font-semibold text-gray-900 dark:text-gray-50">
-                        Since Sept 1
+              <div className="space-y-4 sm:space-y-6">
+                {/* Pie Charts - Mobile: Single with navigation, Desktop: Three side by side */}
+                <div>
+                  {/* Mobile: Single pie chart with navigation */}
+                  <div className="lg:hidden">
+                    <div className="mb-3 flex items-center justify-between">
+                      <h3 className="text-sm font-semibold text-gray-900 dark:text-gray-50">
+                        {selectedPeriod === 'sinceSept1' && 'Since Sept 1'}
+                        {selectedPeriod === 'last4Weeks' && 'Last 4 Weeks'}
+                        {selectedPeriod === 'lastWeek' && 'Last Week'}
                       </h3>
-                      <div className="h-64">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <PieChart>
-                            <Pie
-                              data={heartRateZoneAnalysis.sinceSept1.zoneData}
-                              dataKey="timeSec"
-                              nameKey="zone"
-                              cx="50%"
-                              cy="50%"
-                              innerRadius={50}
-                              outerRadius={90}
-                              paddingAngle={2}
-                              cornerRadius={4}
-                            >
-                              {heartRateZoneAnalysis.sinceSept1.zoneData.map((entry, index) => (
-                                <Cell
-                                  key={`since-sept1-${entry.zone}`}
-                                  fill={HEART_RATE_ZONE_COLORS[index % HEART_RATE_ZONE_COLORS.length]}
-                                  fillOpacity={entry.timeSec > 0 ? 0.85 : 0.2}
-                                  stroke="#111827"
-                                  strokeOpacity={0.12}
-                                  strokeWidth={0.8}
-                                />
-                              ))}
-                            </Pie>
-                            <Tooltip content={HeartRateZoneTooltip} />
-                          </PieChart>
-                        </ResponsiveContainer>
+                      <div className="flex gap-1">
+                        <button
+                          onClick={() => setSelectedPeriod('sinceSept1')}
+                          className={`rounded px-2 py-1 text-xs font-medium transition ${
+                            selectedPeriod === 'sinceSept1'
+                              ? 'bg-orange-500 text-white'
+                              : 'bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
+                          }`}
+                        >
+                          Sept 1
+                        </button>
+                        <button
+                          onClick={() => setSelectedPeriod('last4Weeks')}
+                          className={`rounded px-2 py-1 text-xs font-medium transition ${
+                            selectedPeriod === 'last4Weeks'
+                              ? 'bg-orange-500 text-white'
+                              : 'bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
+                          }`}
+                        >
+                          4W
+                        </button>
+                        <button
+                          onClick={() => setSelectedPeriod('lastWeek')}
+                          className={`rounded px-2 py-1 text-xs font-medium transition ${
+                            selectedPeriod === 'lastWeek'
+                              ? 'bg-orange-500 text-white'
+                              : 'bg-gray-200 text-gray-700 dark:bg-gray-700 dark:text-gray-300'
+                          }`}
+                        >
+                          1W
+                        </button>
                       </div>
                     </div>
-                  )}
+                    {(() => {
+                      const currentData = heartRateZoneAnalysis[selectedPeriod]
+                      if (currentData.totalTimeSec === 0) return null
+                      return (
+                        <div className="rounded-lg border border-gray-200 bg-gray-50 p-3 dark:border-gray-700 dark:bg-gray-900/40">
+                          <div className="h-64">
+                            <ResponsiveContainer width="100%" height="100%">
+                              <PieChart>
+                                <Pie
+                                  data={currentData.zoneData}
+                                  dataKey="timeSec"
+                                  nameKey="zone"
+                                  cx="50%"
+                                  cy="50%"
+                                  innerRadius={50}
+                                  outerRadius={90}
+                                  paddingAngle={2}
+                                  cornerRadius={4}
+                                >
+                                  {currentData.zoneData.map((entry, index) => (
+                                    <Cell
+                                      key={`mobile-${selectedPeriod}-${entry.zone}`}
+                                      fill={HEART_RATE_ZONE_COLORS[index % HEART_RATE_ZONE_COLORS.length]}
+                                      fillOpacity={entry.timeSec > 0 ? 1 : 0.2}
+                                      stroke="#111827"
+                                      strokeOpacity={0.15}
+                                      strokeWidth={1}
+                                    />
+                                  ))}
+                                </Pie>
+                                <Tooltip content={HeartRateZoneTooltip} />
+                              </PieChart>
+                            </ResponsiveContainer>
+                          </div>
+                        </div>
+                      )
+                    })()}
+                  </div>
 
-                  {/* Last 4 Weeks */}
-                  {heartRateZoneAnalysis.last4Weeks.totalTimeSec > 0 && (
-                    <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/40">
-                      <h3 className="mb-4 text-center text-sm font-semibold text-gray-900 dark:text-gray-50">
-                        Last 4 Weeks
-                      </h3>
-                      <div className="h-64">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <PieChart>
-                            <Pie
-                              data={heartRateZoneAnalysis.last4Weeks.zoneData}
-                              dataKey="timeSec"
-                              nameKey="zone"
-                              cx="50%"
-                              cy="50%"
-                              innerRadius={50}
-                              outerRadius={90}
-                              paddingAngle={2}
-                              cornerRadius={4}
-                            >
-                              {heartRateZoneAnalysis.last4Weeks.zoneData.map((entry, index) => (
-                                <Cell
-                                  key={`last4weeks-${entry.zone}`}
-                                  fill={HEART_RATE_ZONE_COLORS[index % HEART_RATE_ZONE_COLORS.length]}
-                                  fillOpacity={entry.timeSec > 0 ? 0.85 : 0.2}
-                                  stroke="#111827"
-                                  strokeOpacity={0.12}
-                                  strokeWidth={0.8}
-                                />
-                              ))}
-                            </Pie>
-                            <Tooltip content={HeartRateZoneTooltip} />
-                          </PieChart>
-                        </ResponsiveContainer>
+                  {/* Desktop: Three pie charts side by side */}
+                  <div className="hidden lg:grid lg:grid-cols-3 lg:gap-4">
+                    {/* Since Sept 1 */}
+                    {heartRateZoneAnalysis.sinceSept1.totalTimeSec > 0 && (
+                      <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/40">
+                        <h3 className="mb-4 text-center text-sm font-semibold text-gray-900 dark:text-gray-50">
+                          Since Sept 1
+                        </h3>
+                        <div className="h-64">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <PieChart>
+                              <Pie
+                                data={heartRateZoneAnalysis.sinceSept1.zoneData}
+                                dataKey="timeSec"
+                                nameKey="zone"
+                                cx="50%"
+                                cy="50%"
+                                innerRadius={50}
+                                outerRadius={90}
+                                paddingAngle={2}
+                                cornerRadius={4}
+                              >
+                                {heartRateZoneAnalysis.sinceSept1.zoneData.map((entry, index) => (
+                                  <Cell
+                                    key={`desktop-sept1-${entry.zone}`}
+                                    fill={HEART_RATE_ZONE_COLORS[index % HEART_RATE_ZONE_COLORS.length]}
+                                    fillOpacity={entry.timeSec > 0 ? 1 : 0.2}
+                                    stroke="#111827"
+                                    strokeOpacity={0.15}
+                                    strokeWidth={1}
+                                  />
+                                ))}
+                              </Pie>
+                              <Tooltip content={HeartRateZoneTooltip} />
+                            </PieChart>
+                          </ResponsiveContainer>
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
 
-                  {/* Last Week */}
-                  {heartRateZoneAnalysis.lastWeek.totalTimeSec > 0 && (
-                    <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/40">
-                      <h3 className="mb-4 text-center text-sm font-semibold text-gray-900 dark:text-gray-50">
-                        Last Week
-                      </h3>
-                      <div className="h-64">
-                        <ResponsiveContainer width="100%" height="100%">
-                          <PieChart>
-                            <Pie
-                              data={heartRateZoneAnalysis.lastWeek.zoneData}
-                              dataKey="timeSec"
-                              nameKey="zone"
-                              cx="50%"
-                              cy="50%"
-                              innerRadius={50}
-                              outerRadius={90}
-                              paddingAngle={2}
-                              cornerRadius={4}
-                            >
-                              {heartRateZoneAnalysis.lastWeek.zoneData.map((entry, index) => (
-                                <Cell
-                                  key={`lastweek-${entry.zone}`}
-                                  fill={HEART_RATE_ZONE_COLORS[index % HEART_RATE_ZONE_COLORS.length]}
-                                  fillOpacity={entry.timeSec > 0 ? 0.85 : 0.2}
-                                  stroke="#111827"
-                                  strokeOpacity={0.12}
-                                  strokeWidth={0.8}
-                                />
-                              ))}
-                            </Pie>
-                            <Tooltip content={HeartRateZoneTooltip} />
-                          </PieChart>
-                        </ResponsiveContainer>
+                    {/* Last 4 Weeks */}
+                    {heartRateZoneAnalysis.last4Weeks.totalTimeSec > 0 && (
+                      <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/40">
+                        <h3 className="mb-4 text-center text-sm font-semibold text-gray-900 dark:text-gray-50">
+                          Last 4 Weeks
+                        </h3>
+                        <div className="h-64">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <PieChart>
+                              <Pie
+                                data={heartRateZoneAnalysis.last4Weeks.zoneData}
+                                dataKey="timeSec"
+                                nameKey="zone"
+                                cx="50%"
+                                cy="50%"
+                                innerRadius={50}
+                                outerRadius={90}
+                                paddingAngle={2}
+                                cornerRadius={4}
+                              >
+                                {heartRateZoneAnalysis.last4Weeks.zoneData.map((entry, index) => (
+                                  <Cell
+                                    key={`desktop-4w-${entry.zone}`}
+                                    fill={HEART_RATE_ZONE_COLORS[index % HEART_RATE_ZONE_COLORS.length]}
+                                    fillOpacity={entry.timeSec > 0 ? 1 : 0.2}
+                                    stroke="#111827"
+                                    strokeOpacity={0.15}
+                                    strokeWidth={1}
+                                  />
+                                ))}
+                              </Pie>
+                              <Tooltip content={HeartRateZoneTooltip} />
+                            </PieChart>
+                          </ResponsiveContainer>
+                        </div>
                       </div>
-                    </div>
-                  )}
+                    )}
+
+                    {/* Last Week */}
+                    {heartRateZoneAnalysis.lastWeek.totalTimeSec > 0 && (
+                      <div className="rounded-lg border border-gray-200 bg-gray-50 p-4 dark:border-gray-700 dark:bg-gray-900/40">
+                        <h3 className="mb-4 text-center text-sm font-semibold text-gray-900 dark:text-gray-50">
+                          Last Week
+                        </h3>
+                        <div className="h-64">
+                          <ResponsiveContainer width="100%" height="100%">
+                            <PieChart>
+                              <Pie
+                                data={heartRateZoneAnalysis.lastWeek.zoneData}
+                                dataKey="timeSec"
+                                nameKey="zone"
+                                cx="50%"
+                                cy="50%"
+                                innerRadius={50}
+                                outerRadius={90}
+                                paddingAngle={2}
+                                cornerRadius={4}
+                              >
+                                {heartRateZoneAnalysis.lastWeek.zoneData.map((entry, index) => (
+                                  <Cell
+                                    key={`desktop-1w-${entry.zone}`}
+                                    fill={HEART_RATE_ZONE_COLORS[index % HEART_RATE_ZONE_COLORS.length]}
+                                    fillOpacity={entry.timeSec > 0 ? 1 : 0.2}
+                                    stroke="#111827"
+                                    strokeOpacity={0.15}
+                                    strokeWidth={1}
+                                  />
+                                ))}
+                              </Pie>
+                              <Tooltip content={HeartRateZoneTooltip} />
+                            </PieChart>
+                          </ResponsiveContainer>
+                        </div>
+                      </div>
+                    )}
+                  </div>
                 </div>
 
-                {/* Metrics Table */}
-                <div className="overflow-hidden rounded-lg border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900">
-                  <table className="w-full" style={{ tableLayout: 'fixed' }}>
+                {/* Mobile: Zone Cards */}
+                <div className="space-y-3 lg:hidden">
+                  {HEART_RATE_ZONES.map((zone, zoneIndex) => {
+                    const sinceSept1Zone = heartRateZoneAnalysis.sinceSept1.zoneData[zoneIndex]
+                    const last4WeeksZone = heartRateZoneAnalysis.last4Weeks.zoneData[zoneIndex]
+                    const lastWeekZone = heartRateZoneAnalysis.lastWeek.zoneData[zoneIndex]
+                    const zoneColor = HEART_RATE_ZONE_COLORS[zoneIndex % HEART_RATE_ZONE_COLORS.length]
+
+                    return (
+                      <div
+                        key={zone.label}
+                        className="rounded-lg border border-gray-200 bg-white p-3 dark:border-gray-800 dark:bg-gray-900"
+                      >
+                        <div className="mb-3 flex items-center gap-2">
+                          <span
+                            className="h-3 w-3 rounded-full"
+                            style={{ backgroundColor: zoneColor }}
+                          />
+                          <h4 className="text-sm font-semibold text-gray-900 dark:text-gray-50">
+                            {zone.label}
+                          </h4>
+                        </div>
+                        <div className="grid grid-cols-3 gap-3">
+                          <div>
+                            <div className="text-[10px] text-gray-500 dark:text-gray-400">Since Sept 1</div>
+                            {sinceSept1Zone.timeSec > 0 ? (
+                              <>
+                                <div className="text-sm font-semibold text-gray-900 dark:text-gray-50">
+                                  {sinceSept1Zone.percentage.toFixed(1)}%
+                                </div>
+                                <div className="text-xs text-gray-600 dark:text-gray-400">
+                                  {formatSecondsToReadable(sinceSept1Zone.timeSec)}
+                                </div>
+                                {sinceSept1Zone.avgHeartRate !== null && (
+                                  <div className="text-xs text-gray-500 dark:text-gray-400">
+                                    {Math.round(sinceSept1Zone.avgHeartRate)} bpm
+                                  </div>
+                                )}
+                              </>
+                            ) : (
+                              <div className="text-xs text-gray-400 dark:text-gray-600">—</div>
+                            )}
+                          </div>
+                          <div>
+                            <div className="text-[10px] text-gray-500 dark:text-gray-400">Last 4 Weeks</div>
+                            {last4WeeksZone.timeSec > 0 ? (
+                              <>
+                                <div className="text-sm font-semibold text-gray-900 dark:text-gray-50">
+                                  {last4WeeksZone.percentage.toFixed(1)}%
+                                </div>
+                                <div className="text-xs text-gray-600 dark:text-gray-400">
+                                  {formatSecondsToReadable(last4WeeksZone.timeSec)}
+                                </div>
+                                {last4WeeksZone.avgHeartRate !== null && (
+                                  <div className="text-xs text-gray-500 dark:text-gray-400">
+                                    {Math.round(last4WeeksZone.avgHeartRate)} bpm
+                                  </div>
+                                )}
+                              </>
+                            ) : (
+                              <div className="text-xs text-gray-400 dark:text-gray-600">—</div>
+                            )}
+                          </div>
+                          <div>
+                            <div className="text-[10px] text-gray-500 dark:text-gray-400">Last Week</div>
+                            {lastWeekZone.timeSec > 0 ? (
+                              <>
+                                <div className="text-sm font-semibold text-gray-900 dark:text-gray-50">
+                                  {lastWeekZone.percentage.toFixed(1)}%
+                                </div>
+                                <div className="text-xs text-gray-600 dark:text-gray-400">
+                                  {formatSecondsToReadable(lastWeekZone.timeSec)}
+                                </div>
+                                {lastWeekZone.avgHeartRate !== null && (
+                                  <div className="text-xs text-gray-500 dark:text-gray-400">
+                                    {Math.round(lastWeekZone.avgHeartRate)} bpm
+                                  </div>
+                                )}
+                              </>
+                            ) : (
+                              <div className="text-xs text-gray-400 dark:text-gray-600">—</div>
+                            )}
+                          </div>
+                        </div>
+                      </div>
+                    )
+                  })}
+                </div>
+
+                {/* Desktop: Metrics Table */}
+                <div className="hidden overflow-x-auto rounded-lg border border-gray-200 bg-white dark:border-gray-800 dark:bg-gray-900 lg:block">
+                  <table className="w-full" style={{ tableLayout: 'auto' }}>
                     <colgroup>
+                      <col style={{ width: '18%' }} />
                       <col style={{ width: '20%' }} />
                       <col style={{ width: '20%' }} />
                       <col style={{ width: '20%' }} />
-                      <col style={{ width: '20%' }} />
-                      <col style={{ width: '20%' }} />
+                      <col style={{ width: '22%' }} />
                     </colgroup>
                     <thead className="border-b border-gray-200 bg-gray-50 dark:border-gray-800 dark:bg-gray-900/50">
                       <tr>
@@ -1901,7 +2074,7 @@ export default function DashboardPage() {
                               {sinceSept1Zone.timeSec > 0 ? (
                                 <div>
                                   <div className="font-semibold">{sinceSept1Zone.percentage.toFixed(1)}%</div>
-                                  <div className="text-gray-500 dark:text-gray-400">
+                                  <div className="text-xs text-gray-500 dark:text-gray-400">
                                     {formatSecondsToReadable(sinceSept1Zone.timeSec)}
                                   </div>
                                 </div>
@@ -1913,7 +2086,7 @@ export default function DashboardPage() {
                               {last4WeeksZone.timeSec > 0 ? (
                                 <div>
                                   <div className="font-semibold">{last4WeeksZone.percentage.toFixed(1)}%</div>
-                                  <div className="text-gray-500 dark:text-gray-400">
+                                  <div className="text-xs text-gray-500 dark:text-gray-400">
                                     {formatSecondsToReadable(last4WeeksZone.timeSec)}
                                   </div>
                                 </div>
@@ -1925,7 +2098,7 @@ export default function DashboardPage() {
                               {lastWeekZone.timeSec > 0 ? (
                                 <div>
                                   <div className="font-semibold">{lastWeekZone.percentage.toFixed(1)}%</div>
-                                  <div className="text-gray-500 dark:text-gray-400">
+                                  <div className="text-xs text-gray-500 dark:text-gray-400">
                                     {formatSecondsToReadable(lastWeekZone.timeSec)}
                                   </div>
                                 </div>
@@ -1933,9 +2106,9 @@ export default function DashboardPage() {
                                 <span className="text-gray-400 dark:text-gray-600">—</span>
                               )}
                             </td>
-                            <td className="px-4 py-3 text-center text-xs text-gray-900 dark:text-gray-50">
+                            <td className="px-4 py-3 text-center text-xs font-semibold text-gray-900 dark:text-gray-50">
                               {avgHR !== null ? (
-                                <span className="font-semibold">{Math.round(avgHR)} bpm</span>
+                                <span>{Math.round(avgHR)} bpm</span>
                               ) : (
                                 <span className="text-gray-400 dark:text-gray-600">—</span>
                               )}
@@ -1953,7 +2126,7 @@ export default function DashboardPage() {
                           {heartRateZoneAnalysis.sinceSept1.totalTimeSec > 0 ? (
                             <div>
                               <div className="font-semibold">100%</div>
-                              <div className="text-gray-500 dark:text-gray-400">
+                              <div className="text-xs text-gray-500 dark:text-gray-400">
                                 {formatSecondsToReadable(heartRateZoneAnalysis.sinceSept1.totalTimeSec)}
                               </div>
                               {heartRateZoneAnalysis.sinceSept1.overallAvgHeartRate !== null && (
@@ -1970,7 +2143,7 @@ export default function DashboardPage() {
                           {heartRateZoneAnalysis.last4Weeks.totalTimeSec > 0 ? (
                             <div>
                               <div className="font-semibold">100%</div>
-                              <div className="text-gray-500 dark:text-gray-400">
+                              <div className="text-xs text-gray-500 dark:text-gray-400">
                                 {formatSecondsToReadable(heartRateZoneAnalysis.last4Weeks.totalTimeSec)}
                               </div>
                               {heartRateZoneAnalysis.last4Weeks.overallAvgHeartRate !== null && (
@@ -1987,7 +2160,7 @@ export default function DashboardPage() {
                           {heartRateZoneAnalysis.lastWeek.totalTimeSec > 0 ? (
                             <div>
                               <div className="font-semibold">100%</div>
-                              <div className="text-gray-500 dark:text-gray-400">
+                              <div className="text-xs text-gray-500 dark:text-gray-400">
                                 {formatSecondsToReadable(heartRateZoneAnalysis.lastWeek.totalTimeSec)}
                               </div>
                               {heartRateZoneAnalysis.lastWeek.overallAvgHeartRate !== null && (
